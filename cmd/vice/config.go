@@ -22,6 +22,7 @@ import (
 	"github.com/mmp/vice/server"
 	"github.com/mmp/vice/sim"
 	"github.com/mmp/vice/stars"
+	"github.com/mmp/vice/tower"
 	"github.com/mmp/vice/tts"
 	"github.com/mmp/vice/util"
 
@@ -54,6 +55,8 @@ type ConfigNoSim struct {
 	ERAMPane        *eram.ERAMPane
 	MessagesPane    *panes.MessagesPane
 	FlightStripPane *panes.FlightStripPane
+	TowerCabPane    *tower.TowerCabPane
+	UseTowerCab     bool
 
 	// Whether the floating windows are visible
 	ShowMessages     bool
@@ -211,6 +214,7 @@ func getDefaultConfig() *Config {
 			ERAMPane:              eram.NewERAMPane(),
 			MessagesPane:          panes.NewMessagesPane(),
 			FlightStripPane:       panes.NewFlightStripPane(),
+			TowerCabPane:          tower.NewTowerCabPane(),
 			ShowMessages:          true,
 			ShowFlightStrips:      true,
 		},
@@ -260,6 +264,9 @@ func LoadOrMakeDefaultConfig(lg *log.Logger) (config *Config, configErr error) {
 		if config.FlightStripPane == nil {
 			config.FlightStripPane = panes.NewFlightStripPane()
 		}
+		if config.TowerCabPane == nil {
+			config.TowerCabPane = tower.NewTowerCabPane()
+		}
 
 		if config.Version < server.ViceSerializeVersion {
 			// Upgrade panes
@@ -302,4 +309,5 @@ func (c *Config) Activate(r renderer.Renderer, p platform.Platform, lg *log.Logg
 	c.ERAMPane.Activate(r, p, lg)
 	c.MessagesPane.Activate(r, p, lg)
 	c.FlightStripPane.Activate(r, p, lg)
+	c.TowerCabPane.Activate(r, p, lg)
 }

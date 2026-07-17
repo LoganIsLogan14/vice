@@ -272,6 +272,13 @@ func uiDraw(mgr *client.ConnectionManager, config *Config, p platform.Platform, 
 			if imgui.IsItemHovered() {
 				imgui.SetTooltip("Toggle flight strips window")
 			}
+
+			if imgui.Button(renderer.FontAwesomeIconPlaneDeparture) {
+				config.UseTowerCab = !config.UseTowerCab
+			}
+			if imgui.IsItemHovered() {
+				imgui.SetTooltip("Toggle top-down Tower Cab display")
+			}
 		}
 
 		if imgui.Button(renderer.FontAwesomeIconBook) {

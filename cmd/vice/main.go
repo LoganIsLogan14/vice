@@ -451,6 +451,7 @@ func loadSavedSim(mgr *client.ConnectionManager, config *Config,
 	isSTARSSim := av.DB.IsTRACON(c.State.Facility) || av.DB.IsATCT(c.State.Facility)
 	activeRadarPane := config.ActiveRadarPane(isSTARSSim)
 	activeRadarPane.LoadedSim(c, plat, lg)
+	config.TowerCabPane.LoadedSim(c, plat, lg)
 	uiResetControlClient(c, config, plat, lg)
 
 	// Apply waypoint commands if specified via command line
@@ -566,6 +567,7 @@ func runGUI(config *Config, configErr error, lg *log.Logger) error {
 					activeRadarPane.ResetSim(c, plat, lg)
 					config.MessagesPane.ResetSim(c, plat, lg)
 					config.FlightStripPane.ResetSim(c, plat, lg)
+					config.TowerCabPane.ResetSim(c, plat, lg)
 
 					// Apply waypoint commands if specified via command line (only for new clients)
 					if *waypointCommands != "" {
@@ -727,7 +729,11 @@ func runGUI(config *Config, configErr error, lg *log.Logger) error {
 		imgui.NewFrame()
 
 		// Generate and render vice draw lists
-		stats.drawPanes = panes.DrawPanes(activeRadarPane, plat, render, controlClient,
+		displayedPane := activeRadarPane
+		if config.UseTowerCab {
+			displayedPane = config.TowerCabPane
+		}
+		stats.drawPanes = panes.DrawPanes(displayedPane, plat, render, controlClient,
 			ui.menuBarHeight, frameEvents, lg)
 
 		// Execute fuzz commands if in fuzz testing mode
