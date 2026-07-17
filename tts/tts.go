@@ -9,8 +9,8 @@ package tts
 
 #cgo !windows LDFLAGS: ${SRCDIR}/../sherpa-onnx/build_go/lib/libsherpa-onnx-c-api.a ${SRCDIR}/../sherpa-onnx/build_go/lib/libsherpa-onnx-core.a ${SRCDIR}/../sherpa-onnx/build_go/lib/libsherpa-onnx-fstfar.a ${SRCDIR}/../sherpa-onnx/build_go/lib/libsherpa-onnx-fst.a ${SRCDIR}/../sherpa-onnx/build_go/lib/libsherpa-onnx-kaldifst-core.a ${SRCDIR}/../sherpa-onnx/build_go/lib/libkaldi-decoder-core.a ${SRCDIR}/../sherpa-onnx/build_go/lib/libkaldi-native-fbank-core.a ${SRCDIR}/../sherpa-onnx/build_go/lib/libssentencepiece_core.a ${SRCDIR}/../sherpa-onnx/build_go/lib/libpiper_phonemize.a ${SRCDIR}/../sherpa-onnx/build_go/lib/libespeak-ng.a ${SRCDIR}/../sherpa-onnx/build_go/lib/libucd.a ${SRCDIR}/../sherpa-onnx/build_go/lib/libkissfft-float.a -lm
 
-#cgo darwin LDFLAGS: ${SRCDIR}/../sherpa-onnx/build_go/_deps/onnxruntime-src/lib/libonnxruntime.a -lstdc++ -framework Foundation -framework Accelerate
-#cgo linux LDFLAGS: ${SRCDIR}/../sherpa-onnx/build_go/_deps/onnxruntime-src/lib/libonnxruntime.a -lstdc++ -lpthread -ldl
+#cgo darwin LDFLAGS: -lonnxruntime -lstdc++ -framework Foundation -framework Accelerate
+#cgo linux LDFLAGS: -lonnxruntime -lstdc++ -lpthread -ldl
 #cgo windows LDFLAGS: -L${SRCDIR}/../sherpa-onnx/build_go/lib -lsherpa-onnx-c-api -L${SRCDIR}/../sherpa-onnx/build_go/_deps/onnxruntime-src/lib -lonnxruntime -static-libstdc++ -static-libgcc
 
 #include <c-api.h>
