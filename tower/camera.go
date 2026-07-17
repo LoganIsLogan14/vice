@@ -21,15 +21,23 @@ type Camera struct {
 	Center      math.Point2LL
 	Home        math.Point2LL
 	RangeNM     float32
+	HomeRangeNM float32
 	RotationDeg float32
 }
 
 func NewCamera() Camera { return Camera{RangeNM: defaultRangeNM} }
 
 func (c *Camera) Reset(center math.Point2LL) {
+	c.ResetView(center, defaultRangeNM)
+}
+
+// ResetView establishes the current view and the view restored by a
+// double-right-click.
+func (c *Camera) ResetView(center math.Point2LL, rangeNM float32) {
 	c.Center = center
 	c.Home = center
-	c.RangeNM = defaultRangeNM
+	c.RangeNM = math.Clamp(rangeNM, minimumRangeNM, maximumRangeNM)
+	c.HomeRangeNM = c.RangeNM
 	c.RotationDeg = 0
 }
 
@@ -72,7 +80,7 @@ func (c *Camera) HandleMouse(ctx *panes.Context, transforms radar.ScopeTransform
 
 	if ctx.Mouse.DoubleClicked[platform.MouseButtonSecondary] {
 		c.Center = c.Home
-		c.RangeNM = defaultRangeNM
+		c.RangeNM = c.HomeRangeNM
 		changed = true
 	}
 

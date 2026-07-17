@@ -12,7 +12,29 @@ import (
 	"github.com/mmp/vice/renderer"
 )
 
-const nominalRunwayWidthFeet = float32(150)
+const (
+	nominalRunwayWidthFeet = float32(150)
+	airportFramePadding    = float32(1.30)
+	minimumAirportRangeNM  = float32(1.5)
+)
+
+// initialAirportRange returns a camera range that keeps all runway thresholds
+// visible while making the airport fill most of the Tower Cab pane.
+func initialAirportRange(ap av.FAAAirport) float32 {
+	maxDistanceNM := float32(0)
+	for _, runway := range ap.Runways {
+		distanceNM := math.NMDistance2LL(ap.Location, runway.Threshold)
+		if distanceNM > maxDistanceNM {
+			maxDistanceNM = distanceNM
+		}
+	}
+
+	rangeNM := maxDistanceNM * airportFramePadding
+	if rangeNM < minimumAirportRangeNM {
+		rangeNM = minimumAirportRangeNM
+	}
+	return rangeNM
+}
 
 func drawAirport(ap av.FAAAirport, transforms radar.ScopeTransformations,
 	fills *renderer.ColoredTrianglesDrawBuilder, lines *renderer.LinesDrawBuilder,

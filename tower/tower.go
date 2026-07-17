@@ -40,7 +40,7 @@ func (tp *TowerCabPane) ResetSim(c *client.ControlClient, p platform.Platform, l
 func (tp *TowerCabPane) resetView(c *client.ControlClient) {
 	tp.camera.Reset(c.State.Center)
 	if ap, ok := av.DB.LookupAirport(c.State.PrimaryAirport); ok {
-		tp.camera.Reset(ap.Location)
+		tp.camera.ResetView(ap.Location, initialAirportRange(ap))
 	}
 }
 
