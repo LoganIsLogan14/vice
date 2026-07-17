@@ -47,7 +47,7 @@ func drawAirport(ap av.FAAAirport, transforms radar.ScopeTransformations,
 		halfWidthPixels := float32(4)
 		if lengthNM > 0 {
 			widthNM := nominalRunwayWidthFeet / math.NauticalMilesToFeet
-			halfWidthPixels = math.Max(float32(2), lengthPixels*widthNM/lengthNM/2)
+			halfWidthPixels = max(float32(2), lengthPixels*widthNM/lengthNM/2)
 		}
 		offset := math.Scale2f(perpendicular, halfWidthPixels)
 		q0 := math.Add2f(p0, offset)
@@ -77,7 +77,7 @@ func drawAirport(ap av.FAAAirport, transforms radar.ScopeTransformations,
 func drawThresholdBar(threshold, opposite [2]float32, halfWidth float32, lines *renderer.LinesDrawBuilder) {
 	direction := math.Normalize2f(math.Sub2f(opposite, threshold))
 	perpendicular := [2]float32{-direction[1], direction[0]}
-	width := math.Max(float32(5), halfWidth*0.9)
+	width := max(float32(5), halfWidth*0.9)
 	lines.AddLine(
 		math.Add2f(threshold, math.Scale2f(perpendicular, -width)),
 		math.Add2f(threshold, math.Scale2f(perpendicular, width)),
@@ -86,7 +86,7 @@ func drawThresholdBar(threshold, opposite [2]float32, halfWidth float32, lines *
 
 func runwayLabelPosition(threshold, opposite [2]float32, halfWidth float32) [2]float32 {
 	direction := math.Normalize2f(math.Sub2f(opposite, threshold))
-	return math.Add2f(threshold, math.Scale2f(direction, math.Max(float32(18), halfWidth*2.2)))
+	return math.Add2f(threshold, math.Scale2f(direction, max(float32(18), halfWidth*2.2)))
 }
 
 func drawReferencePoint(center [2]float32, lines *renderer.LinesDrawBuilder) {
