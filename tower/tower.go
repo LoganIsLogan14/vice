@@ -21,7 +21,9 @@ type TowerCabPane struct {
 	font   *renderer.Font
 }
 
-func NewTowerCabPane() *TowerCabPane { return &TowerCabPane{camera: NewCamera()} }
+func NewTowerCabPane() *TowerCabPane {
+	return &TowerCabPane{camera: NewCamera()}
+}
 
 func (tp *TowerCabPane) Activate(r renderer.Renderer, p platform.Platform, lg *log.Logger) {
 	tp.font = renderer.GetDefaultFont()
@@ -54,6 +56,8 @@ func (tp *TowerCabPane) Draw(ctx *panes.Context, cb *renderer.CommandBuffer) {
 
 	fills := renderer.GetColoredTrianglesDrawBuilder()
 	defer renderer.ReturnColoredTrianglesDrawBuilder(fills)
+	aircraftTriangles := renderer.GetColoredTrianglesDrawBuilder()
+	defer renderer.ReturnColoredTrianglesDrawBuilder(aircraftTriangles)
 	lines := renderer.GetLinesDrawBuilder()
 	defer renderer.ReturnLinesDrawBuilder(lines)
 	text := renderer.GetTextDrawBuilder()
@@ -67,16 +71,23 @@ func (tp *TowerCabPane) Draw(ctx *panes.Context, cb *renderer.CommandBuffer) {
 		drawReferencePoint(transforms.WindowFromLatLongP(tp.camera.Center), lines)
 	}
 
-	// Pavement first, then markings and labels.
+	// Pavement first, then markings, then aircraft so targets remain readable.
 	fills.GenerateCommands(cb)
 	cb.SetRGB(renderer.RGB{R: 0.66, G: 0.68, B: 0.70})
 	cb.LineWidth(1.5, ctx.DPIScale)
 	lines.GenerateCommands(cb)
 
+	airportCenter := tp.camera.Home
+	if airportOK {
+		airportCenter = airport.Location
+	}
+	aircraftCount := drawAircraft(ctx.Client.State.Tracks, airportCenter, transforms, aircraftTriangles, text, tp.font)
+	aircraftTriangles.GenerateCommands(cb)
+
 	style := renderer.TextStyle{Font: tp.font, Color: renderer.RGB{R: 0.88, G: 0.90, B: 0.92}}
-	text.AddText(fmt.Sprintf("TOWER CAB  %s  %.1f NM", airportID, tp.camera.RangeNM),
+	text.AddText(fmt.Sprintf("TOWER CAB %s %.1f NM  %d AIRCRAFT  15 NM FILTER", airportID, tp.camera.RangeNM, aircraftCount),
 		[2]float32{12, ctx.PaneExtent.Height() - 24}, style)
-	text.AddText("Mouse wheel: zoom   Right-drag: pan   Double-right-click: reset",
+	text.AddText("Mouse wheel: zoom Right-drag: pan Double-right-click: reset",
 		[2]float32{12, 16}, renderer.TextStyle{Font: tp.font, Color: renderer.RGB{R: 0.55, G: 0.58, B: 0.60}})
 	text.GenerateCommands(cb)
 }
