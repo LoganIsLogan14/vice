@@ -6,51 +6,121 @@ package main
 
 import "github.com/mmp/vice/panes"
 
-// scenarioUI describes the pane-level UI owned by the active simulation mode.
-// Keeping this interface small makes it possible to move mode-specific toolbar,
-// window, and drawing behavior behind the same boundary in later passes.
+// scenarioUI is the UI boundary for a simulation family.
+//
+// The pane objects themselves remain in Config because they are persisted there,
+// but ownership of mode-specific composition now lives in dedicated STARS,
+// ERAM, and Tower implementations. Later passes can add toolbar items, windows,
+// keyboard references, or other mode-specific behavior without putting mode
+// checks back into ui.go.
 type scenarioUI interface {
 	ActivePane() panes.Pane
 	SettingsPanes() []panes.UIDrawer
 }
 
-type configuredScenarioUI struct {
-	activePane    panes.Pane
-	settingsPanes []panes.UIDrawer
+type baseScenarioUI struct {
+	config     *Config
+	activePane panes.Pane
 }
 
-func (ui *configuredScenarioUI) ActivePane() panes.Pane {
+func (ui *baseScenarioUI) ActivePane() panes.Pane {
 	return ui.activePane
 }
 
-func (ui *configuredScenarioUI) SettingsPanes() []panes.UIDrawer {
-	return ui.settingsPanes
+func (ui *baseScenarioUI) sharedSettingsPanes() []panes.UIDrawer {
+	return collectSettingsPanes(
+		ui.config.MessagesPane,
+		ui.config.FlightStripPane,
+	)
 }
 
-// makeScenarioUI constructs the UI composition for the selected simulation
-// mode. Shared panes are included first, followed by the active mode pane.
-// Tower Cab remains available as a companion in STARS and ERAM, while Tower
-// mode naturally avoids adding it twice.
-func makeScenarioUI(config *Config, activePane panes.Pane) scenarioUI {
-	ui := &configuredScenarioUI{activePane: activePane}
+// starsScenarioUI owns the UI composition for STARS simulations.
+type starsScenarioUI struct {
+	baseScenarioUI
+}
 
-	appendSettingsPane := func(pane any) {
-		draw, ok := pane.(panes.UIDrawer)
-		if !ok {
-			return
-		}
-		for _, existing := range ui.settingsPanes {
+func (ui *starsScenarioUI) SettingsPanes() []panes.UIDrawer {
+	return collectSettingsPanes(
+		ui.sharedSettingsPanes(),
+		ui.activePane,
+		ui.config.TowerCabPane,
+	)
+}
+
+// eramScenarioUI owns the UI composition for ERAM simulations.
+type eramScenarioUI struct {
+	baseScenarioUI
+}
+
+func (ui *eramScenarioUI) SettingsPanes() []panes.UIDrawer {
+	return collectSettingsPanes(
+		ui.sharedSettingsPanes(),
+		ui.activePane,
+		ui.config.TowerCabPane,
+	)
+}
+
+// towerScenarioUI owns the UI composition for Tower simulations.
+type towerScenarioUI struct {
+	baseScenarioUI
+}
+
+func (ui *towerScenarioUI) SettingsPanes() []panes.UIDrawer {
+	return collectSettingsPanes(
+		ui.sharedSettingsPanes(),
+		ui.activePane,
+	)
+}
+
+// makeScenarioUI is the single factory that selects the UI implementation for
+// the active simulation family.
+//
+// Pane identity is used here intentionally: activePaneForScenario has already
+// performed the authoritative ScenarioMode dispatch, including compatibility
+// fallback for older saved simulations. This keeps the compatibility policy in
+// one place rather than duplicating it here.
+func makeScenarioUI(config *Config, activePane panes.Pane) scenarioUI {
+	base := baseScenarioUI{
+		config:     config,
+		activePane: activePane,
+	}
+
+	switch activePane {
+	case config.TowerCabPane:
+		return &towerScenarioUI{baseScenarioUI: base}
+	case config.ERAMPane:
+		return &eramScenarioUI{baseScenarioUI: base}
+	default:
+		return &starsScenarioUI{baseScenarioUI: base}
+	}
+}
+
+// collectSettingsPanes converts pane values to UIDrawers, flattens any
+// pre-collected []panes.UIDrawer values, and removes duplicates while
+// preserving order.
+func collectSettingsPanes(values ...any) []panes.UIDrawer {
+	var result []panes.UIDrawer
+
+	appendPane := func(draw panes.UIDrawer) {
+		for _, existing := range result {
 			if existing == draw {
 				return
 			}
 		}
-		ui.settingsPanes = append(ui.settingsPanes, draw)
+		result = append(result, draw)
 	}
 
-	appendSettingsPane(config.MessagesPane)
-	appendSettingsPane(config.FlightStripPane)
-	appendSettingsPane(activePane)
-	appendSettingsPane(config.TowerCabPane)
+	for _, value := range values {
+		switch value := value.(type) {
+		case []panes.UIDrawer:
+			for _, draw := range value {
+				appendPane(draw)
+			}
 
-	return ui
+		case panes.UIDrawer:
+			appendPane(value)
+		}
+	}
+
+	return result
 }
