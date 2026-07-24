@@ -81,6 +81,7 @@ type CommonState struct {
 	FacilityAdaptation FacilityAdaptation
 
 	Facility          string
+	ScenarioMode      ScenarioMode
 	MagneticVariation float32
 	NmPerLongitude    float32
 	PrimaryAirport    string
@@ -281,6 +282,7 @@ func newCommonState(config NewSimConfiguration, startTime time.Time, model *wx.M
 		FacilityAdaptation: deep.MustCopy(config.FacilityAdaptation),
 
 		Facility:          config.Facility,
+		ScenarioMode:      config.ScenarioMode,
 		MagneticVariation: config.MagneticVariation,
 		NmPerLongitude:    config.NmPerLongitude,
 		PrimaryAirport:    config.PrimaryAirport,

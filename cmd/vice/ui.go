@@ -273,19 +273,6 @@ func uiDraw(mgr *client.ConnectionManager, config *Config, p platform.Platform, 
 				imgui.SetTooltip("Toggle flight strips window")
 			}
 
-			towerCabActive := config.UseTowerCab
-			if towerCabActive {
-				imgui.PushStyleColorVec4(imgui.ColText, imgui.Vec4{X: 0, Y: 0.8, Z: 0, W: 1})
-			}
-			if imgui.Button(renderer.FontAwesomeIconHome) {
-				config.UseTowerCab = !config.UseTowerCab
-			}
-			if towerCabActive {
-				imgui.PopStyleColor()
-			}
-			if imgui.IsItemHovered() {
-				imgui.SetTooltip("Toggle Tower Cab display")
-			}
 		}
 
 		if imgui.Button(renderer.FontAwesomeIconBook) {
@@ -929,8 +916,20 @@ func uiDrawSettingsWindow(c *client.ControlClient, config *Config, activeRadarPa
 		}
 	}
 
-	// Draw settings only for the panes that are actually displayed.
-	for _, pane := range []any{config.MessagesPane, config.FlightStripPane, activeRadarPane} {
+	// Draw settings only for the panes that are actually displayed. Tower Cab
+	// is normally included explicitly so its settings remain available while a
+	// STARS or ERAM pane is active. In Tower mode, however, it is already the
+	// active radar pane, so do not append it a second time.
+	settingsPanes := []any{
+		config.MessagesPane,
+		config.FlightStripPane,
+		activeRadarPane,
+	}
+	if activeRadarPane != config.TowerCabPane {
+		settingsPanes = append(settingsPanes, config.TowerCabPane)
+	}
+
+	for _, pane := range settingsPanes {
 		if draw, ok := pane.(panes.UIDrawer); ok {
 			if imgui.CollapsingHeaderBoolPtr(draw.DisplayName(), nil) {
 				draw.DrawUI(p, &config.Config)

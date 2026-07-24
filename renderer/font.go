@@ -413,7 +413,11 @@ func FontsInit(r Renderer, p platform.Platform) {
 		"RobotoMono-MediumItalic.ttf.zst": RobotoMonoItalic,
 		"Flight-Strip-Printer.ttf.zst":    FlightStripPrinter} {
 		f := loadFont(fn)
-		for _, size := range []int{6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24, 28} {
+		for _, size := range []int{
+			6, 7, 8, 9, 10, 11, 12, 13, 14,
+			16, 18, 20, 22, 24, 26, 28,
+			30, 32, 36, 40, 48,
+		} {
 			createFontSize(f, size, name)
 		}
 	}

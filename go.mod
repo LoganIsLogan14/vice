@@ -23,8 +23,11 @@ require (
 	github.com/mmp/squall v0.0.0-20260310141042-e3ce8bc98323
 	github.com/ncruces/zenity v0.10.14
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
+	github.com/rclancey/earcut v0.0.0-20180411045245-f3ec78d87470
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/shirou/gopsutil/v3 v3.24.5
+	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c
+	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef
 	github.com/tosone/minimp3 v1.0.2
 	github.com/veandco/go-sdl2 v0.5.0-alpha.3.0.20220913133553-3c4862273074
 	github.com/vmihailenco/msgpack/v5 v5.4.1

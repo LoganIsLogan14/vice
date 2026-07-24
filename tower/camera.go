@@ -5,6 +5,8 @@ package tower
 
 import (
 	"github.com/mmp/vice/math"
+
+	"github.com/AllenDang/cimgui-go/imgui"
 	"github.com/mmp/vice/panes"
 	"github.com/mmp/vice/platform"
 	"github.com/mmp/vice/radar"
@@ -12,8 +14,17 @@ import (
 
 const (
 	defaultRangeNM = float32(8)
-	minimumRangeNM = float32(0.5)
+
+	// Allow a much closer surface view, comparable to CRC.
+	minimumRangeNM = float32(0.05)
 	maximumRangeNM = float32(40)
+
+	// Normal wheel movement is deliberately fine-grained. Holding Ctrl uses
+	// larger steps for quickly moving between airport-wide and close views.
+	zoomFineInFactor    = float32(0.95)
+	zoomFineOutFactor   = float32(1.0526316)
+	zoomCoarseInFactor  = float32(0.85)
+	zoomCoarseOutFactor = float32(1.18)
 )
 
 // Camera stores the Tower Cab view independently of the STARS view.
@@ -48,34 +59,45 @@ func (c *Camera) Transforms(ctx *panes.Context) radar.ScopeTransformations {
 
 // HandleMouse updates zoom and pan. It returns true when the transforms need
 // to be rebuilt before drawing.
-func (c *Camera) HandleMouse(ctx *panes.Context, transforms radar.ScopeTransformations) bool {
+func (c *Camera) HandleMouse(ctx *panes.Context, transforms radar.ScopeTransformations, config *TowerCabConfig) bool {
 	if ctx.Mouse == nil {
 		return false
 	}
 
 	changed := false
 
-	if wheel := ctx.Mouse.Wheel[1]; wheel != 0 {
-		before := transforms.LatLongFromWindowP(ctx.Mouse.Pos)
-		factor := float32(0.85)
-		if wheel > 0 {
-			// VICE reports the user's wheel-up direction with the opposite sign
-			// from the convention used by the first Tower Cab prototype.
-			factor = 1.18
+	if config.MousePanZoomEnabled {
+		if wheel := ctx.Mouse.Wheel[1]; wheel != 0 {
+			before := transforms.LatLongFromWindowP(ctx.Mouse.Pos)
+
+			inFactor := zoomFineInFactor
+			outFactor := zoomFineOutFactor
+			if imgui.CurrentIO().KeyCtrl() {
+				inFactor = zoomCoarseInFactor
+				outFactor = zoomCoarseOutFactor
+			}
+
+			factor := inFactor
+			if wheel > 0 {
+				// Preserve the existing Tower Cab wheel direction.
+				factor = outFactor
+			}
+			c.RangeNM = math.Clamp(c.RangeNM*factor, minimumRangeNM, maximumRangeNM)
+
+			if config.ZoomToCursor {
+				// Keep the point under the cursor stationary while zooming.
+				afterTransforms := c.Transforms(ctx)
+				after := afterTransforms.LatLongFromWindowP(ctx.Mouse.Pos)
+				c.Center = math.Add2f(c.Center, math.Sub2f(before, after))
+			}
+			changed = true
 		}
-		c.RangeNM = math.Clamp(c.RangeNM*factor, minimumRangeNM, maximumRangeNM)
 
-		// Keep the point under the cursor stationary while zooming.
-		afterTransforms := c.Transforms(ctx)
-		after := afterTransforms.LatLongFromWindowP(ctx.Mouse.Pos)
-		c.Center = math.Add2f(c.Center, math.Sub2f(before, after))
-		changed = true
-	}
-
-	if ctx.Mouse.Dragging[platform.MouseButtonSecondary] {
-		llDelta := transforms.LatLongFromWindowV(ctx.Mouse.DragDelta)
-		c.Center = math.Sub2f(c.Center, llDelta)
-		changed = true
+		if ctx.Mouse.Dragging[platform.MouseButtonSecondary] {
+			llDelta := transforms.LatLongFromWindowV(ctx.Mouse.DragDelta)
+			c.Center = math.Sub2f(c.Center, llDelta)
+			changed = true
+		}
 	}
 
 	if ctx.Mouse.DoubleClicked[platform.MouseButtonSecondary] {

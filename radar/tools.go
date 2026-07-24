@@ -83,6 +83,37 @@ func (st *ScopeTransformations) WindowFromLatLongP(p math.Point2LL) [2]float32 {
 	return pw
 }
 
+// WindowFromLatLongPUnsnapped transforms a latitude/longitude point to
+// fractional window coordinates without snapping it to a pixel center.
+//
+// This is useful for filled and antialiased geographic geometry, where
+// snapping every vertex creates visibly stair-stepped polygon boundaries at
+// close zoom levels.
+func (st *ScopeTransformations) WindowFromLatLongPUnsnapped(
+	p math.Point2LL,
+) [2]float32 {
+	return st.windowFromLatLong.TransformPoint(p)
+}
+
+// WindowFromLatLong64 transforms a double-precision geographic point while
+// retaining sub-meter detail. The point is first expressed relative to a
+// nearby float32 origin, so only the small local delta is converted to
+// float32. This avoids quantizing absolute longitudes such as -93 degrees.
+func (st *ScopeTransformations) WindowFromLatLong64(
+	p [2]float64,
+	origin math.Point2LL,
+) [2]float32 {
+	originWindow := st.windowFromLatLong.TransformPoint(origin)
+	delta := math.Point2LL{
+		float32(p[0] - float64(origin[0])),
+		float32(p[1] - float64(origin[1])),
+	}
+	return math.Add2f(
+		originWindow,
+		st.windowFromLatLong.TransformVector(delta),
+	)
+}
+
 // LatLongFromWindowP transforms a point p in window coordinates to
 // latitude-longitude.
 func (st *ScopeTransformations) LatLongFromWindowP(p [2]float32) math.Point2LL {

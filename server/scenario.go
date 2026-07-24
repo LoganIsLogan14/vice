@@ -36,6 +36,7 @@ type scenarioGroup struct {
 	ARTCC              string                     `json:"artcc"`
 	Area               string                     `json:"area"`
 	TRACON             string                     `json:"tracon"`
+	Tower              string                     `json:"tower"`
 	Name               string                     `json:"name"`
 	Airports           map[string]*av.Airport     `json:"airports"`
 	Fixes              map[string]math.Point2LL   `json:"-"`
@@ -65,6 +66,10 @@ type scenarioGroup struct {
 }
 
 type scenario struct {
+	// Mode selects the controller environment. Existing scenarios that omit
+	// it are inferred as STARS or ERAM from the facility type.
+	Mode sim.ScenarioMode `json:"mode,omitempty"`
+
 	// ConfigurationString holds the plain configuration ID string from JSON
 	// (e.g. "STD"). It references a key in facility_adaptations.configurations.
 	ConfigurationString string `json:"configuration"`
@@ -100,6 +105,12 @@ type scenario struct {
 
 func (s *scenario) PostDeserialize(sg *scenarioGroup, e *util.ErrorLogger, mapSpec *av.MapLibrarySpec) {
 	defer e.CheckDepth(e.CurrentDepth())
+
+	if s.Mode == "" {
+		s.Mode = sg.scenarioMode()
+	} else if !s.Mode.Valid() {
+		e.ErrorString(`"mode" must be one of "stars", "eram", or "tower"`)
+	}
 
 	// Validate wind specifier if present
 	if s.WindSpecifier != nil {
@@ -917,24 +928,7 @@ func (sg *scenarioGroup) PostDeserialize(e *util.ErrorLogger, catalogs map[strin
 	checkAirportFilter(fa.Filters.InhibitMSAW)
 	checkAirportFilter(fa.Filters.SurfaceTracking)
 
-	if sg.ARTCC == "" {
-		if sg.TRACON == "" {
-			e.ErrorString(`"tracon" or "artcc" must be specified`)
-		} else if !av.DB.IsFacility(sg.TRACON) {
-			e.ErrorString("TRACON %q is unknown; it must be a 3-letter identifier listed at "+
-				"https://www.faa.gov/about/office_org/headquarters_offices/ato/service_units/air_traffic_services/tracon.",
-				sg.TRACON)
-		}
-	} else if sg.TRACON == "" {
-		if sg.ARTCC == "" {
-			e.ErrorString(`"artcc" must be specified`)
-		}
-		if _, ok := av.DB.ARTCCs[sg.ARTCC]; !ok {
-			e.ErrorString("ARTCC %q is unknown; it must be a 3-letter identifier listed at "+
-				"https://www.faa.gov/about/office_org/headquarters_offices/ato/service_units/air_traffic_services/artcc", sg.ARTCC)
-		}
-		sg.TRACON = sg.ARTCC // TODO: find a better way to do this
-	}
+	sg.validateFacilitySelector(e)
 
 	sg.Fixes = make(map[string]math.Point2LL)
 	for _, fix := range sg.FixesStrings.Keys() {
@@ -1690,14 +1684,8 @@ func PostDeserializeFacilityAdaptation(s *sim.FacilityAdaptation, e *util.ErrorL
 }
 
 func initializeSimConfigurations(sg *scenarioGroup, catalogs map[string]map[string]*ScenarioCatalog, e *util.ErrorLogger) {
-	facility := sg.TRACON
-	if facility == "" {
-		facility = sg.ARTCC
-	}
-	artcc := sg.ARTCC
-	if artcc == "" {
-		artcc = av.DB.ARTCCForFacility(facility)
-	}
+	facility := sg.facility()
+	artcc := sg.parentARTCC()
 
 	catalog := &ScenarioCatalog{
 		Scenarios:        make(map[string]*ScenarioSpec),
@@ -1725,6 +1713,7 @@ func initializeSimConfigurations(sg *scenarioGroup, catalogs map[string]map[stri
 			vfrAirports, scenario.InboundFlowDefaultRates, haveVFRReportingRegions)
 
 		spec := &ScenarioSpec{
+			Mode:                    scenario.Mode,
 			ControllerConfiguration: &scenario.ControllerConfiguration,
 			LaunchConfig:            lc,
 			Description:             scenario.Description,
@@ -1794,8 +1783,8 @@ func loadScenarioGroup(filesystem fs.FS, path string, e *util.ErrorLogger) *scen
 		e.ErrorString(`scenario group is missing "name"`)
 		return nil
 	}
-	if s.TRACON == "" && s.ARTCC == "" {
-		e.ErrorString(`scenario group is missing "tracon" or "artcc"`)
+	if s.TRACON == "" && s.ARTCC == "" && s.Tower == "" {
+		e.ErrorString(`scenario group is missing "tracon", "artcc", or "tower"`)
 		return nil
 	}
 	s.SourceFile = path
@@ -1807,14 +1796,8 @@ func loadScenarioGroup(filesystem fs.FS, path string, e *util.ErrorLogger) *scen
 // configurations/<ARTCC>/<facility>.json where facility is the TRACON
 // (for STARS scenarios) or the ARTCC itself (for ERAM scenarios).
 func facilityConfigPath(sg *scenarioGroup) string {
-	facility := sg.TRACON
-	if facility == "" {
-		facility = sg.ARTCC
-	}
-	artcc := sg.ARTCC
-	if artcc == "" {
-		artcc = av.DB.ARTCCForFacility(sg.TRACON)
-	}
+	facility := sg.facility()
+	artcc := sg.parentARTCC()
 	return "configurations/" + artcc + "/" + facility + ".json"
 }
 
@@ -2029,9 +2012,9 @@ func LoadScenarioGroups(extraScenarioFilename string, extraVideoMapFilename stri
 			continue
 		}
 		s := r.s
-		facility := util.Select(s.TRACON == "", s.ARTCC, s.TRACON)
+		facility := s.facility()
 		if _, ok := scenarioGroups[facility][s.Name]; ok {
-			e.ErrorString("%s / %s: scenario redefined", s.TRACON, s.Name)
+			e.ErrorString("%s / %s: scenario redefined", facility, s.Name)
 		} else {
 			if scenarioGroups[facility] == nil {
 				scenarioGroups[facility] = make(map[string]*scenarioGroup)
@@ -2063,7 +2046,7 @@ func LoadScenarioGroups(extraScenarioFilename string, extraVideoMapFilename stri
 		}()
 		s := loadScenarioGroup(fs, extraScenarioFilename, &extraE)
 		if s != nil {
-			facility := util.Select(s.TRACON == "", s.ARTCC, s.TRACON)
+			facility := s.facility()
 
 			// Load and validate facility config for the extra scenario.
 			extraResourcesFS := util.GetResourcesFS()
@@ -2554,7 +2537,8 @@ func CreateNewSimConfiguration(catalog *ScenarioCatalog, scenarioGroup *scenario
 	}
 
 	newSimConfig := &sim.NewSimConfiguration{
-		Facility:                scenarioGroup.TRACON,
+		Facility:                scenarioGroup.facility(),
+		ScenarioMode:            scenario.Mode,
 		Description:             scenarioName,
 		LaunchConfig:            CreateLaunchConfig(scenario, scenarioGroup),
 		DepartureRunways:        simConfig.DepartureRunways,

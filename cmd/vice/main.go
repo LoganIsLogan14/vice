@@ -447,11 +447,15 @@ func loadSavedSim(mgr *client.ConnectionManager, config *Config,
 		return nil, nil
 	}
 
-	// Notify the active radar pane about the loaded sim
+	// Select the primary pane. Saved simulations from before scenario modes
+	// existed have an empty mode, so retain the original facility-based
+	// STARS/ERAM fallback for them.
 	isSTARSSim := av.DB.IsTRACON(c.State.Facility) || av.DB.IsATCT(c.State.Facility)
-	activeRadarPane := config.ActiveRadarPane(isSTARSSim)
+	activeRadarPane := config.ActivePane(c.State.ScenarioMode, isSTARSSim)
 	activeRadarPane.LoadedSim(c, plat, lg)
-	config.TowerCabPane.LoadedSim(c, plat, lg)
+	if activeRadarPane != config.TowerCabPane {
+		config.TowerCabPane.LoadedSim(c, plat, lg)
+	}
 	uiResetControlClient(c, config, plat, lg)
 
 	// Apply waypoint commands if specified via command line
@@ -559,15 +563,17 @@ func runGUI(config *Config, configErr error, lg *log.Logger) error {
 			*videoMapFilename, *scenarioBriefFilename, &config.DisableTextToSpeech, lg,
 			func(c *client.ControlClient) { // updated client
 				if c != nil {
-					// Determine if this is a STARS or ERAM scenario
+					// Tower scenarios select Tower Cab directly. Existing and saved
+					// scenarios retain the original facility-based STARS/ERAM fallback.
 					isSTARSSim := av.DB.IsTRACON(c.State.Facility) || av.DB.IsATCT(c.State.Facility)
-					activeRadarPane = config.ActiveRadarPane(isSTARSSim)
+					activeRadarPane = config.ActivePane(c.State.ScenarioMode, isSTARSSim)
 
-					// Reset each pane for the new sim
 					activeRadarPane.ResetSim(c, plat, lg)
 					config.MessagesPane.ResetSim(c, plat, lg)
 					config.FlightStripPane.ResetSim(c, plat, lg)
-					config.TowerCabPane.ResetSim(c, plat, lg)
+					if activeRadarPane != config.TowerCabPane {
+						config.TowerCabPane.ResetSim(c, plat, lg)
+					}
 
 					// Apply waypoint commands if specified via command line (only for new clients)
 					if *waypointCommands != "" {
@@ -728,12 +734,8 @@ func runGUI(config *Config, configErr error, lg *log.Logger) error {
 		plat.NewFrame()
 		imgui.NewFrame()
 
-		// Generate and render vice draw lists
-		displayedPane := activeRadarPane
-		if config.UseTowerCab {
-			displayedPane = config.TowerCabPane
-		}
-		stats.drawPanes = panes.DrawPanes(displayedPane, plat, render, controlClient,
+		// Generate and render the pane selected by the scenario mode.
+		stats.drawPanes = panes.DrawPanes(activeRadarPane, plat, render, controlClient,
 			ui.menuBarHeight, frameEvents, lg)
 
 		// Execute fuzz commands if in fuzz testing mode

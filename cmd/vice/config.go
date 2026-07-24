@@ -56,7 +56,6 @@ type ConfigNoSim struct {
 	MessagesPane    *panes.MessagesPane
 	FlightStripPane *panes.FlightStripPane
 	TowerCabPane    *tower.TowerCabPane
-	UseTowerCab     bool
 
 	// Whether the floating windows are visible
 	ShowMessages     bool
@@ -192,12 +191,25 @@ func (c *Config) SaveIfChanged(renderer renderer.Renderer, platform platform.Pla
 	return true
 }
 
-// ActiveRadarPane returns the STARS or ERAM pane based on the sim type.
-func (c *Config) ActiveRadarPane(isSTARSSim bool) panes.Pane {
-	if isSTARSSim {
+// ActivePane returns the primary display pane for the current scenario.
+//
+// ScenarioMode may be empty when restoring a simulation saved before Tower
+// scenarios were introduced. In that case, isSTARSSim preserves VICE's
+// original STARS/ERAM selection behavior.
+func (c *Config) ActivePane(mode sim.ScenarioMode, isSTARSSim bool) panes.Pane {
+	switch mode {
+	case sim.ScenarioModeTower:
+		return c.TowerCabPane
+	case sim.ScenarioModeERAM:
+		return c.ERAMPane
+	case sim.ScenarioModeSTARS:
 		return c.STARSPane
+	default:
+		if isSTARSSim {
+			return c.STARSPane
+		}
+		return c.ERAMPane
 	}
-	return c.ERAMPane
 }
 
 func getDefaultConfig() *Config {

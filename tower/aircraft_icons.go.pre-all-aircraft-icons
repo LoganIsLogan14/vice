@@ -1,0 +1,61 @@
+// Copyright(c) vice contributors, licensed under the GNU Public License, Version 3.
+// SPDX: GPL-3.0-only
+
+package tower
+
+import (
+	"bytes"
+	_ "embed"
+	"image"
+
+	"github.com/mmp/vice/renderer"
+	"github.com/srwiley/oksvg"
+	"github.com/srwiley/rasterx"
+)
+
+const aircraftIconTextureSize = 128
+
+//go:embed icons/b738.svg
+var b738SVG []byte
+
+func loadB738Texture(r renderer.Renderer) uint32 {
+	icon, err := oksvg.ReadIconStream(bytes.NewReader(b738SVG), oksvg.WarnErrorMode)
+	if err != nil {
+		return 0
+	}
+
+	size := aircraftIconTextureSize
+	width := float64(size)
+	height := float64(size)
+	x := float64(0)
+	y := float64(0)
+
+	if icon.ViewBox.W > 0 && icon.ViewBox.H > 0 {
+		aspect := icon.ViewBox.W / icon.ViewBox.H
+		if aspect > 1 {
+			height = width / aspect
+			y = (float64(size) - height) / 2
+		} else {
+			width = height * aspect
+			x = (float64(size) - width) / 2
+		}
+	}
+
+	icon.SetTarget(x, y, width, height)
+
+	img := image.NewRGBA(image.Rect(0, 0, size, size))
+	scanner := rasterx.NewScannerGV(size, size, img, img.Bounds())
+	raster := rasterx.NewDasher(size, size, scanner)
+	icon.Draw(raster, 1)
+
+	// Convert the SVG into a white alpha mask. The renderer then tints the
+	// texture with Tower Cab's configured aircraft, outline, and shadow colors.
+	for i := 0; i+3 < len(img.Pix); i += 4 {
+		alpha := img.Pix[i+3]
+		img.Pix[i] = alpha
+		img.Pix[i+1] = alpha
+		img.Pix[i+2] = alpha
+	}
+
+	return r.CreateTextureFromImage(img, false)
+}
