@@ -20,14 +20,15 @@ func activePaneForScenario(config *Config, c *client.ControlClient) panes.Pane {
 	return config.ActivePane(c.State.ScenarioMode, isSTARSSim)
 }
 
-// loadScenarioPanes initializes panes when restoring a saved simulation.
-func loadScenarioPanes(
+// loadScenarioUI initializes the mode-specific UI when restoring a saved simulation.
+func loadScenarioUI(
 	config *Config,
 	c *client.ControlClient,
 	plat platform.Platform,
 	lg *log.Logger,
-) panes.Pane {
-	activePane := activePaneForScenario(config, c)
+) scenarioUI {
+	ui := makeScenarioUI(config, activePaneForScenario(config, c))
+	activePane := ui.ActivePane()
 	activePane.LoadedSim(c, plat, lg)
 
 	// Tower Cab remains available as a companion pane in STARS and ERAM.
@@ -36,17 +37,18 @@ func loadScenarioPanes(
 		config.TowerCabPane.LoadedSim(c, plat, lg)
 	}
 
-	return activePane
+	return ui
 }
 
-// resetScenarioPanes initializes panes for a newly connected simulation.
-func resetScenarioPanes(
+// resetScenarioUI initializes the mode-specific UI for a newly connected simulation.
+func resetScenarioUI(
 	config *Config,
 	c *client.ControlClient,
 	plat platform.Platform,
 	lg *log.Logger,
-) panes.Pane {
-	activePane := activePaneForScenario(config, c)
+) scenarioUI {
+	ui := makeScenarioUI(config, activePaneForScenario(config, c))
+	activePane := ui.ActivePane()
 	activePane.ResetSim(c, plat, lg)
 
 	// Tower Cab remains available as a companion pane in STARS and ERAM.
@@ -55,5 +57,5 @@ func resetScenarioPanes(
 		config.TowerCabPane.ResetSim(c, plat, lg)
 	}
 
-	return activePane
+	return ui
 }

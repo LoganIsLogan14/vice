@@ -435,7 +435,7 @@ func startBackgroundModelLoading(config *Config, plat platform.Platform, lg *log
 // config. Returns the control client and active radar pane if
 // successful, or nil for both if loading fails or there is no saved sim.
 func loadSavedSim(mgr *client.ConnectionManager, config *Config,
-	plat platform.Platform, lg *log.Logger) (*client.ControlClient, panes.Pane) {
+	plat platform.Platform, lg *log.Logger) (*client.ControlClient, scenarioUI) {
 
 	if config.Sim == nil || *resetSim || *starsRandoms {
 		return nil, nil
@@ -447,7 +447,7 @@ func loadSavedSim(mgr *client.ConnectionManager, config *Config,
 		return nil, nil
 	}
 
-	activeRadarPane := loadScenarioPanes(config, c, plat, lg)
+	activeScenarioUI := loadScenarioUI(config, c, plat, lg)
 	uiResetControlClient(c, config, plat, lg)
 
 	// Apply waypoint commands if specified via command line
@@ -455,7 +455,7 @@ func loadSavedSim(mgr *client.ConnectionManager, config *Config,
 		c.SetWaypointCommands(*waypointCommands)
 	}
 
-	return c, activeRadarPane
+	return c, activeScenarioUI
 }
 
 // setupFuzzTesting connects to a server, picks a random scenario, and
@@ -525,7 +525,7 @@ func runGUI(config *Config, configErr error, lg *log.Logger) error {
 	// inter-dependencies in the following; the order is carefully crafted.
 
 	var controlClient *client.ControlClient
-	var activeRadarPane panes.Pane
+	var activeScenarioUI scenarioUI
 
 	// Kick off the heavy non-OpenGL initialization (aviation database,
 	// weather, scenario loading, local server) in a goroutine so it runs
@@ -555,7 +555,7 @@ func runGUI(config *Config, configErr error, lg *log.Logger) error {
 			*videoMapFilename, *scenarioBriefFilename, &config.DisableTextToSpeech, lg,
 			func(c *client.ControlClient) { // updated client
 				if c != nil {
-					activeRadarPane = resetScenarioPanes(config, c, plat, lg)
+					activeScenarioUI = resetScenarioUI(config, c, plat, lg)
 					config.MessagesPane.ResetSim(c, plat, lg)
 					config.FlightStripPane.ResetSim(c, plat, lg)
 
@@ -633,9 +633,9 @@ func runGUI(config *Config, configErr error, lg *log.Logger) error {
 	WaitForWhisperBenchmark(render, plat, lg)
 
 	// Restore previously-saved simulation if available.
-	if c, arp := loadSavedSim(mgr, config, plat, lg); c != nil {
+	if c, scenarioUI := loadSavedSim(mgr, config, plat, lg); c != nil {
 		controlClient = c
-		activeRadarPane = arp
+		activeScenarioUI = scenarioUI
 	}
 
 	if *starsRandoms {
@@ -719,7 +719,7 @@ func runGUI(config *Config, configErr error, lg *log.Logger) error {
 		imgui.NewFrame()
 
 		// Generate and render the pane selected by the scenario mode.
-		stats.drawPanes = panes.DrawPanes(activeRadarPane, plat, render, controlClient,
+		stats.drawPanes = panes.DrawPanes(activeScenarioUI.ActivePane(), plat, render, controlClient,
 			ui.menuBarHeight, frameEvents, lg)
 
 		// Execute fuzz commands if in fuzz testing mode
@@ -729,7 +729,7 @@ func runGUI(config *Config, configErr error, lg *log.Logger) error {
 		}
 
 		// Draw the user interface
-		stats.drawUI = uiDraw(mgr, config, plat, render, controlClient, activeRadarPane, frameEvents, lg)
+		stats.drawUI = uiDraw(mgr, config, plat, render, controlClient, activeScenarioUI, frameEvents, lg)
 
 		// Wait for vsync
 		plat.PostRender()

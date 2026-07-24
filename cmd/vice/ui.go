@@ -162,7 +162,7 @@ func uiInit(r renderer.Renderer, p platform.Platform, config *Config, lg *log.Lo
 }
 
 func uiDraw(mgr *client.ConnectionManager, config *Config, p platform.Platform, r renderer.Renderer,
-	controlClient *client.ControlClient, activeRadarPane panes.Pane, events []sim.Event, lg *log.Logger) renderer.RendererStats {
+	controlClient *client.ControlClient, scenarioUI scenarioUI, events []sim.Event, lg *log.Logger) renderer.RendererStats {
 	if ui.newReleaseDialogChan != nil {
 		select {
 		case dialog, ok := <-ui.newReleaseDialogChan:
@@ -340,10 +340,10 @@ func uiDraw(mgr *client.ConnectionManager, config *Config, p platform.Platform, 
 	}
 
 	if controlClient != nil && !activeModal {
-		uiDrawSettingsWindow(controlClient, config, activeRadarPane, p, lg)
+		uiDrawSettingsWindow(controlClient, config, scenarioUI, p, lg)
 
 		if ui.showScenarioInfo {
-			ui.showScenarioInfo = drawScenarioInfoWindow(mgr, config, controlClient, activeRadarPane, p, lg)
+			ui.showScenarioInfo = drawScenarioInfoWindow(mgr, config, controlClient, scenarioUI.ActivePane(), p, lg)
 		}
 
 		if ui.showLaunchControl {
@@ -838,7 +838,7 @@ func drawPinButton(windowTitle string, config *Config, p platform.Platform) {
 	panes.DrawPinButton(windowTitle, config.UnpinnedWindows, p)
 }
 
-func uiDrawSettingsWindow(c *client.ControlClient, config *Config, activeRadarPane panes.Pane, p platform.Platform, lg *log.Logger) {
+func uiDrawSettingsWindow(c *client.ControlClient, config *Config, scenarioUI scenarioUI, p platform.Platform, lg *log.Logger) {
 	if !ui.showSettings {
 		return
 	}
@@ -916,24 +916,9 @@ func uiDrawSettingsWindow(c *client.ControlClient, config *Config, activeRadarPa
 		}
 	}
 
-	// Draw settings only for the panes that are actually displayed. Tower Cab
-	// is normally included explicitly so its settings remain available while a
-	// STARS or ERAM pane is active. In Tower mode, however, it is already the
-	// active radar pane, so do not append it a second time.
-	settingsPanes := []any{
-		config.MessagesPane,
-		config.FlightStripPane,
-		activeRadarPane,
-	}
-	if activeRadarPane != config.TowerCabPane {
-		settingsPanes = append(settingsPanes, config.TowerCabPane)
-	}
-
-	for _, pane := range settingsPanes {
-		if draw, ok := pane.(panes.UIDrawer); ok {
-			if imgui.CollapsingHeaderBoolPtr(draw.DisplayName(), nil) {
-				draw.DrawUI(p, &config.Config)
-			}
+	for _, draw := range scenarioUI.SettingsPanes() {
+		if imgui.CollapsingHeaderBoolPtr(draw.DisplayName(), nil) {
+			draw.DrawUI(p, &config.Config)
 		}
 	}
 
