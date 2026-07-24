@@ -447,15 +447,7 @@ func loadSavedSim(mgr *client.ConnectionManager, config *Config,
 		return nil, nil
 	}
 
-	// Select the primary pane. Saved simulations from before scenario modes
-	// existed have an empty mode, so retain the original facility-based
-	// STARS/ERAM fallback for them.
-	isSTARSSim := av.DB.IsTRACON(c.State.Facility) || av.DB.IsATCT(c.State.Facility)
-	activeRadarPane := config.ActivePane(c.State.ScenarioMode, isSTARSSim)
-	activeRadarPane.LoadedSim(c, plat, lg)
-	if activeRadarPane != config.TowerCabPane {
-		config.TowerCabPane.LoadedSim(c, plat, lg)
-	}
+	activeRadarPane := loadScenarioPanes(config, c, plat, lg)
 	uiResetControlClient(c, config, plat, lg)
 
 	// Apply waypoint commands if specified via command line
@@ -563,17 +555,9 @@ func runGUI(config *Config, configErr error, lg *log.Logger) error {
 			*videoMapFilename, *scenarioBriefFilename, &config.DisableTextToSpeech, lg,
 			func(c *client.ControlClient) { // updated client
 				if c != nil {
-					// Tower scenarios select Tower Cab directly. Existing and saved
-					// scenarios retain the original facility-based STARS/ERAM fallback.
-					isSTARSSim := av.DB.IsTRACON(c.State.Facility) || av.DB.IsATCT(c.State.Facility)
-					activeRadarPane = config.ActivePane(c.State.ScenarioMode, isSTARSSim)
-
-					activeRadarPane.ResetSim(c, plat, lg)
+					activeRadarPane = resetScenarioPanes(config, c, plat, lg)
 					config.MessagesPane.ResetSim(c, plat, lg)
 					config.FlightStripPane.ResetSim(c, plat, lg)
-					if activeRadarPane != config.TowerCabPane {
-						config.TowerCabPane.ResetSim(c, plat, lg)
-					}
 
 					// Apply waypoint commands if specified via command line (only for new clients)
 					if *waypointCommands != "" {
