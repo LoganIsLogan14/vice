@@ -7,6 +7,8 @@ package sim
 import (
 	"fmt"
 	"strings"
+
+	av "github.com/mmp/vice/aviation"
 )
 
 // ScenarioMode identifies the controller environment used by a scenario.
@@ -29,6 +31,28 @@ func (m ScenarioMode) Valid() bool {
 }
 
 func (m ScenarioMode) String() string { return string(m) }
+
+// IsTerminal reports whether this sim runs a terminal flight plan
+// environment (STARS) rather than an enroute one (ERAM). Tower cabs are
+// terminal: an ATCT sits underneath a TRACON, so its flight plans follow
+// STARS conventions.
+//
+// Tower facilities are catalogued with an "_TOWER" suffix, which av.DB
+// does not recognize, so dispatching on the scenario's mode is both more
+// direct and more accurate than inspecting the facility identifier. When
+// ScenarioMode is empty — a sim saved before tower scenarios existed —
+// this falls back to exactly the test that preceded it, so restored sims
+// keep their original behavior.
+func (s *CommonState) IsTerminal() bool {
+	switch s.ScenarioMode {
+	case ScenarioModeSTARS, ScenarioModeTower:
+		return true
+	case ScenarioModeERAM:
+		return false
+	default:
+		return av.DB.IsTRACON(s.Facility)
+	}
+}
 
 func ParseScenarioMode(s string) (ScenarioMode, error) {
 	mode := ScenarioMode(strings.ToLower(strings.TrimSpace(s)))

@@ -1138,7 +1138,7 @@ func (s *Sim) initializeIFRDepartureNoLock(ac *Aircraft, ap *av.Airport, departu
 	ac.ReportDepartureSID = exitRoutesHaveVariedSIDs(exitRoutes)
 
 	shortExit := dep.Exit.Base()
-	isTRACON := av.DB.IsTRACON(s.State.Facility)
+	isTerminal := s.State.IsTerminal()
 	nasFp := s.initNASFlightPlan(ac, av.FlightTypeDeparture)
 	nasFp.Route = ac.FlightPlan.Route
 	if len(ac.FlightPlan.DepartureAirport) == 4 {
@@ -1161,7 +1161,7 @@ func (s *Sim) initializeIFRDepartureNoLock(ac *Aircraft, ap *av.Airport, departu
 	}
 	nasFp.SecondaryScratchpad = dep.SecondaryScratchpad
 	nasFp.RequestedAltitude = ac.FlightPlan.Altitude
-	nasFp.AssignedAltitude = util.Select(!isTRACON, ac.FlightPlan.Altitude, 0)
+	nasFp.AssignedAltitude = util.Select(!isTerminal, ac.FlightPlan.Altitude, 0)
 	nasFp.RNAV = s.State.FacilityAdaptation.Datablocks.DisplayRNAVSymbol && exitRoute.IsRNAV
 
 	ac.HoldForRelease = (ap.HoldForRelease || exitRoute.HoldForRelease) && ac.FlightPlan.Rules == av.FlightRulesIFR // VFRs aren't held

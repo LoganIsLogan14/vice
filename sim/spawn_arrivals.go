@@ -547,7 +547,7 @@ func (s *Sim) createOverflightNoLock(group string) (*Aircraft, error) {
 		return nil, err
 	}
 
-	isTRACON := av.DB.IsTRACON(s.State.Facility)
+	isTerminal := s.State.IsTerminal()
 	nasFp := s.initNASFlightPlan(ac, av.FlightTypeOverflight)
 	nasFp.Route = ac.FlightPlan.Route
 	nasFp.EntryFix = "" // TODO
@@ -558,7 +558,7 @@ func (s *Sim) createOverflightNoLock(group string) (*Aircraft, error) {
 	nasFp.InboundHandoffController = s.InboundAssignments[group]
 	nasFp.Scratchpad = of.Scratchpad
 	nasFp.SecondaryScratchpad = of.SecondaryScratchpad
-	nasFp.AssignedAltitude = util.Select(!isTRACON, int(of.AssignedAltitude), 0)
+	nasFp.AssignedAltitude = util.Select(!isTerminal, int(of.AssignedAltitude), 0)
 	nasFp.RequestedAltitude = ac.FlightPlan.Altitude
 	nasFp.RNAV = s.State.FacilityAdaptation.Datablocks.DisplayRNAVSymbol && of.IsRNAV
 	nasFp.TypeOfFlight = of.TypeOfFlight
