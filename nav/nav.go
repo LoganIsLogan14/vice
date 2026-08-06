@@ -86,6 +86,11 @@ type Nav struct {
 type UpdateResult struct {
 	PassedWaypoint *av.Waypoint
 	ActionEvents   []av.WaypointActionEvent
+
+	// TouchedDown is set on the single update where the aircraft landed,
+	// so the sim can react to the transition: recording runway occupancy,
+	// sequencing departures behind it, and so on.
+	TouchedDown bool
 }
 
 type contactCrossingRestriction struct {

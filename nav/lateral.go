@@ -138,7 +138,7 @@ func (nav *Nav) Update(callsign string, model *wx.Model, fp *av.FlightPlan, arri
 func (nav *Nav) UpdateWithWeather(callsign string, wxs wx.Sample, arrivalMETAR *wx.METAR, fp *av.FlightPlan, simTime Time, bravo *av.AirspaceGrid) UpdateResult {
 	nav.PendingWaypointActionEvents = nil
 	nav.activatePendingAltitude(simTime)
-	nav.checkTouchdown()
+	touchedDown := nav.checkTouchdown()
 
 	// Log current state every tick
 	NavLog(callsign, simTime, NavLogState, "pos=%.4f,%.4f alt=%.0f hdg=%.0f ias=%.0f gs=%.0f bank=%.1f rate=%.0f",
@@ -161,9 +161,11 @@ func (nav *Nav) UpdateWithWeather(callsign string, wxs wx.Sample, arrivalMETAR *
 		nav.Heading.Hold == nil && len(nav.Heading.Maneuvers) == 0 {
 		result = nav.updateWaypoints(callsign, wxs, fp, simTime)
 		result.ActionEvents = append(nav.PendingWaypointActionEvents, result.ActionEvents...)
+		result.TouchedDown = touchedDown
 		return result
 	}
 
+	result.TouchedDown = touchedDown
 	return result
 }
 

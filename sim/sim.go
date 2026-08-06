@@ -1120,6 +1120,12 @@ func (s *Sim) updateState() {
 			arrivalMETAR := s.State.METAR[ac.FlightPlan.ArrivalAirport]
 			updateResult := ac.Update(s.wxModel, s.State.SimTime, &arrivalMETAR, s.bravoAirspace, nil /* s.lg*/)
 			passedWaypoint := updateResult.PassedWaypoint
+
+			if updateResult.TouchedDown {
+				s.lg.Debugf("tower: %s touched down at %s, altitude %.0f ft, %.0f kts",
+					ac.ADSBCallsign, ac.FlightPlan.ArrivalAirport,
+					ac.Nav.FlightState.Altitude, ac.Nav.FlightState.IAS)
+			}
 			s.refreshSeenTraffic(ac)
 
 			if ac.Nav.Approach.RequestApproachClearance && ac.IsAssociated() {

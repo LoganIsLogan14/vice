@@ -34,12 +34,14 @@ const (
 // tower cab and leaves the runway looking permanently clear. Landing is
 // gated on GroundOps because STARS and ERAM scenarios rely on arrivals
 // continuing to fly until a controller deletes them.
-func (nav *Nav) checkTouchdown() {
+// It reports whether the aircraft touched down on this call, so callers can
+// react to the transition rather than having to poll for it.
+func (nav *Nav) checkTouchdown() bool {
 	if !nav.GroundOps || nav.FlightState.Landed {
-		return
+		return false
 	}
 	if nav.FlightState.Altitude > nav.FlightState.ArrivalAirportElevation+touchdownAGL {
-		return
+		return false
 	}
 	// Touching down is deliberately not conditioned on an approach
 	// clearance. Many facilities vector arrivals onto final rather than
@@ -49,7 +51,7 @@ func (nav *Nav) checkTouchdown() {
 	// distinguishes a landing from a low pass elsewhere.
 	if math.NMDistance2LL(nav.FlightState.Position, nav.FlightState.ArrivalAirportLocation) >
 		touchdownRangeNM {
-		return
+		return false
 	}
 
 	nav.FlightState.Landed = true
@@ -58,6 +60,8 @@ func (nav *Nav) checkTouchdown() {
 	// TargetAltitude and TargetSpeed from here on.
 	nav.Altitude = NavAltitude{}
 	nav.Speed = NavSpeed{}
+
+	return true
 }
 
 // IsLanded reports whether the aircraft has touched down and is on the
