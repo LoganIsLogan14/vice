@@ -63,10 +63,14 @@ func (s *Sim) placeTowerArrivalOnFinal(ac *Aircraft) bool {
 	airport := ac.FlightPlan.ArrivalAirport
 	rwy, ok := s.towerArrivalRunway(airport)
 	if !ok {
+		s.lg.Warnf("tower: no usable arrival runway for %s (configured: %v); "+
+			"%s keeps its original routing", airport, s.State.ArrivalRunways, ac.ADSBCallsign)
 		return false
 	}
 	faaAP, ok := av.DB.Airports[airport]
 	if !ok {
+		s.lg.Warnf("tower: %s is not in the airport database; %s keeps its original routing",
+			airport, ac.ADSBCallsign)
 		return false
 	}
 
@@ -91,6 +95,10 @@ func (s *Sim) placeTowerArrivalOnFinal(ac *Aircraft) bool {
 	ac.Nav.FlightState.Altitude = float32(faaAP.Elevation) + towerFinalNM*towerGlidepathFtPerNM
 	ac.Nav.FlightState.Heading = rwy.Heading
 	ac.Nav.FlightState.IAS = towerFinalIAS
+
+	s.lg.Debugf("tower: placed %s on a %.0fnm final for %s runway %s at %.0f ft",
+		ac.ADSBCallsign, float32(towerFinalNM), airport, rwy.Id,
+		ac.Nav.FlightState.Altitude)
 
 	return true
 }
