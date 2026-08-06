@@ -537,7 +537,8 @@ func (s *scenario) PostDeserialize(sg *scenarioGroup, e *util.ErrorLogger, mapSp
 	// Do any active airports have CRDA?
 	haveCRDA := util.SeqContainsFunc(maps.Keys(activeAirports),
 		func(ap *av.Airport) bool { return len(ap.CRDAPairs) > 0 })
-	if haveCRDA {
+	// CRDA is a STARS display aid; a tower cab has no scope to show it on.
+	if haveCRDA && !sg.isTower() {
 		// Make sure all of the controllers involved have a valid default airport via areas
 		for _, pos := range s.ControllerConfiguration.AllPositions() {
 			if ctrl, ok := sg.FacilityConfig.ControlPositions[pos]; ok {
