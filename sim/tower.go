@@ -20,21 +20,28 @@ const (
 
 	towerFinalIAS     = 180
 	towerThresholdIAS = 140
+
+	// towerRolloutNM is how far down the runway an arrival rolls before it
+	// is considered clear of it.
+	towerRolloutNM = 1.5
 )
 
 // towerArrivalRunway returns the runway arrivals are landing on at the
 // given airport under the current configuration.
 func (s *Sim) towerArrivalRunway(airport string) (av.Runway, bool) {
-	var id av.RunwayID
+	// Spread arrivals over every configured runway rather than sending them
+	// all to whichever happens to be listed first; a parallel operation
+	// otherwise uses half the airport.
+	var ids []av.RunwayID
 	for _, ar := range s.State.ArrivalRunways {
 		if ar.Airport == airport {
-			id = ar.Runway
-			break
+			ids = append(ids, ar.Runway)
 		}
 	}
-	if id == "" {
+	if len(ids) == 0 {
 		return av.Runway{}, false
 	}
+	id := ids[s.Rand.Intn(len(ids))]
 
 	faaAP, ok := av.DB.Airports[airport]
 	if !ok {
@@ -77,10 +84,16 @@ func (s *Sim) placeTowerArrivalOnFinal(ac *Aircraft) bool {
 	b := newPatternBuilder(rwy, faaAP.Elevation, s.State.NmPerLongitude, s.State.MagneticVariation)
 
 	// The route is just the runway now: cross the threshold, then roll out
-	// along it.
+	// along it. Reaching the end of the rollout stands in for clearing the
+	// runway onto a taxiway, which needs surface geometry that does not
+	// exist yet; without it landed aircraft accumulate on the runway
+	// forever, since nothing else removes them.
+	rollout := b.waypoint("_twr_rollout", towerRolloutNM, 0, 0, 0, 0)
+	rollout.SetDelete(true)
+
 	ac.Nav.Waypoints = []av.Waypoint{
 		b.waypoint("_twr_threshold", 0, 0, 0, towerThresholdIAS, 0),
-		b.waypoint("_twr_rollout", 1, 0, 0, 0, 0),
+		rollout,
 	}
 
 	// Drop the STAR's altitude and speed restrictions along with any
