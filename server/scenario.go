@@ -2579,7 +2579,12 @@ func LoadScenarioGroups(extraScenarioFilename string, extraVideoMapFilename stri
 
 			t := &phase3Task{tname: tname, groupName: groupName, sgroup: sgroup}
 			fa := &sgroup.FacilityConfig.FacilityAdaptation
-			if vf := fa.VideoMapFile; vf == "" {
+			if sgroup.isTower() {
+				// A tower cab draws no video maps, so it needs no map
+				// library. t.mapSpec stays nil; every use of it downstream
+				// is reached only via video map references a tower has none
+				// of.
+			} else if vf := fa.VideoMapFile; vf == "" {
 				t.vfErr = `no "video_map_file" specified`
 			} else if mapSpec, ok := mapSpecs[vf]; !ok {
 				t.vfErr = fmt.Sprintf("no mapSpec for video map %q found. Options: %s",
