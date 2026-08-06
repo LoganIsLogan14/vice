@@ -1,0 +1,213 @@
+// Copyright(c) vice contributors, licensed under the GNU Public License, Version 3.
+// SPDX: GPL-3.0-only
+
+package tower
+
+import (
+	gomath "math"
+	"strings"
+
+	av "github.com/mmp/vice/aviation"
+	"github.com/mmp/vice/math"
+	"github.com/mmp/vice/radar"
+	"github.com/mmp/vice/renderer"
+	"github.com/mmp/vice/sim"
+)
+
+const (
+	towerTrafficRadius       = float32(15)
+	aircraftReferenceRangeNM = float32(10)
+)
+
+func drawAircraft(
+	tracks map[av.ADSBCallsign]*sim.Track,
+	airportCenter math.Point2LL,
+	rangeNM float32,
+	transforms radar.ScopeTransformations,
+	triangles *renderer.ColoredTrianglesDrawBuilder,
+	datablockBackgrounds *DatablockBackgroundDrawBuilder,
+	sprites *renderer.TexturedQuadsDrawBuilder,
+	aircraftTextures map[string]uint32,
+	text *renderer.TextDrawBuilder,
+	config *TowerCabConfig,
+	datablocks map[string]DatablockState,
+) int {
+	config.Normalize()
+	labelFont := renderer.GetFont(renderer.FontIdentifier{
+		Name: renderer.RobotoMono,
+		Size: config.DataBlockFontSize,
+	})
+
+	zoomScale := aircraftZoomScale(rangeNM)
+
+	count := 0
+	for callsign, track := range tracks {
+		if track == nil || strings.HasPrefix(callsign.String(), "__") {
+			continue
+		}
+		if math.NMDistance2LL(airportCenter, track.Location) > towerTrafficRadius {
+			continue
+		}
+
+		position := transforms.WindowFromLatLongP(track.Location)
+		headingRadians := float32(float64(track.Heading) * gomath.Pi / 180)
+
+		aircraftType := ""
+		if track.FlightPlan != nil {
+			aircraftType = track.FlightPlan.AircraftType
+		}
+		if texture := aircraftTextureForTrack(aircraftTextures, aircraftType); texture != 0 {
+			drawTowerAircraftSprite(
+				position,
+				headingRadians,
+				zoomScale,
+				config,
+				texture,
+				sprites,
+			)
+		} else {
+			drawTowerAircraftSymbol(position, headingRadians, zoomScale, config, triangles)
+		}
+
+		if config.ShowDataBlocks {
+			callsignString := callsign.String()
+			state := datablockStateFor(datablocks, callsignString)
+
+			drawTowerDatablock(
+				callsignString,
+				track,
+				position,
+				state,
+				labelFont,
+				datablockBackgrounds,
+				triangles,
+				text,
+				config,
+			)
+		}
+
+		count++
+	}
+	return count
+}
+
+func formatTowerCallsign(callsign string, mode CallsignDisplayMode) string {
+	switch mode {
+	case CallsignDisplayNone:
+		return ""
+	case CallsignDisplayAirline:
+		for i, r := range callsign {
+			if r >= '0' && r <= '9' {
+				return callsign[:i]
+			}
+		}
+		return callsign
+	default:
+		return callsign
+	}
+}
+
+func aircraftZoomScale(rangeNM float32) float32 {
+	if rangeNM <= 0 {
+		return 1
+	}
+	return aircraftReferenceRangeNM / rangeNM
+}
+
+// drawTowerAircraftSprite draws an ICAO-specific embedded aircraft silhouette.
+func drawTowerAircraftSprite(
+	position [2]float32,
+	headingRadians float32,
+	zoomScale float32,
+	config *TowerCabConfig,
+	texture uint32,
+	sprites *renderer.TexturedQuadsDrawBuilder,
+) {
+	const iconSize = float32(18)
+
+	symbolScale := zoomScale * config.AircraftScale
+	size := iconSize * symbolScale
+	outlineSize := size * config.AircraftOutlineScale
+
+	shadowColor := renderer.RGB{R: 0.05, G: 0.05, B: 0.05}
+	outlineColor := renderer.RGB{R: 0.08, G: 0.08, B: 0.08}
+	shadowPosition := [2]float32{
+		position[0] + config.AircraftShadowOffsetX*symbolScale,
+		position[1] + config.AircraftShadowOffsetY*symbolScale,
+	}
+
+	sprites.AddSprite(texture, shadowPosition, outlineSize, outlineSize, headingRadians, shadowColor)
+	sprites.AddSprite(texture, position, outlineSize, outlineSize, headingRadians, outlineColor)
+	sprites.AddSprite(texture, position, size, size, headingRadians, config.AircraftColor)
+}
+
+// drawTowerAircraftSymbol draws a clean CRC-inspired top-down vector target.
+func drawTowerAircraftSymbol(
+	position [2]float32,
+	headingRadians float32,
+	zoomScale float32,
+	config *TowerCabConfig,
+	triangles *renderer.ColoredTrianglesDrawBuilder,
+) {
+	shadowColor := renderer.RGB{R: 0.05, G: 0.05, B: 0.05}
+	outlineColor := renderer.RGB{R: 0.08, G: 0.08, B: 0.08}
+	symbolScale := zoomScale * config.AircraftScale
+
+	shadowPosition := [2]float32{
+		position[0] + config.AircraftShadowOffsetX*symbolScale,
+		position[1] + config.AircraftShadowOffsetY*symbolScale,
+	}
+
+	drawTowerAircraftShape(shadowPosition, headingRadians, symbolScale*config.AircraftOutlineScale, shadowColor, triangles)
+	drawTowerAircraftShape(position, headingRadians, symbolScale*config.AircraftOutlineScale, outlineColor, triangles)
+	drawTowerAircraftShape(position, headingRadians, symbolScale, config.AircraftColor, triangles)
+}
+
+func drawTowerAircraftShape(
+	position [2]float32,
+	headingRadians float32,
+	scale float32,
+	color renderer.RGB,
+	triangles *renderer.ColoredTrianglesDrawBuilder,
+) {
+	nose := [2]float32{0, 10.5}
+	neckLeft := [2]float32{-0.85, 7.6}
+	neckRight := [2]float32{0.85, 7.6}
+	frontRootLeft := [2]float32{-0.95, 2.4}
+	frontRootRight := [2]float32{0.95, 2.4}
+	wingTipLeft := [2]float32{-7.2, -0.2}
+	wingTipRight := [2]float32{7.2, -0.2}
+	rearRootLeft := [2]float32{-0.85, -1.4}
+	rearRootRight := [2]float32{0.85, -1.4}
+	stabRootLeft := [2]float32{-0.7, -6.1}
+	stabRootRight := [2]float32{0.7, -6.1}
+	stabTipLeft := [2]float32{-3.3, -7.4}
+	stabTipRight := [2]float32{3.3, -7.4}
+	tailLeft := [2]float32{-0.45, -8.4}
+	tailRight := [2]float32{0.45, -8.4}
+
+	sinH := float32(gomath.Sin(float64(headingRadians)))
+	cosH := float32(gomath.Cos(float64(headingRadians)))
+
+	transform := func(p [2]float32) [2]float32 {
+		x := p[0] * scale
+		y := p[1] * scale
+		return [2]float32{
+			position[0] + x*cosH + y*sinH,
+			position[1] - x*sinH + y*cosH,
+		}
+	}
+	addTriangle := func(a, b, c [2]float32) {
+		triangles.AddTriangle(transform(a), transform(b), transform(c), color)
+	}
+	addQuad := func(a, b, c, d [2]float32) {
+		triangles.AddQuad(transform(a), transform(b), transform(c), transform(d), color)
+	}
+
+	addTriangle(frontRootLeft, wingTipLeft, rearRootLeft)
+	addTriangle(frontRootRight, rearRootRight, wingTipRight)
+	addTriangle(stabRootLeft, stabTipLeft, tailLeft)
+	addTriangle(stabRootRight, tailRight, stabTipRight)
+	addTriangle(nose, neckLeft, neckRight)
+	addQuad(neckLeft, neckRight, tailRight, tailLeft)
+}
