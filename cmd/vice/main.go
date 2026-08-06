@@ -484,9 +484,11 @@ func loadSavedSim(mgr *client.ConnectionManager, config *Config,
 		return nil, nil
 	}
 
-	// Notify the active radar pane about the loaded sim
+	// Notify the active pane about the loaded sim. ScenarioMode is empty for
+	// sims saved before tower scenarios existed, in which case isSTARSSim
+	// preserves the original STARS/ERAM selection.
 	isSTARSSim := av.DB.IsTRACON(c.State.Facility) || av.DB.IsATCT(c.State.Facility)
-	activeRadarPane := config.ActiveRadarPane(isSTARSSim)
+	activeRadarPane := config.ActivePane(c.State.ScenarioMode, isSTARSSim)
 	activeRadarPane.LoadedSim(c, plat, lg)
 	uiResetControlClient(c, config, plat, lg)
 
@@ -595,9 +597,9 @@ func runGUI(config *Config, configErr error, lg *log.Logger) error {
 			*videoMapFilename, *scenarioBriefFilename, &config.DisableTextToSpeech, lg,
 			func(c *client.ControlClient) { // updated client
 				if c != nil {
-					// Determine if this is a STARS or ERAM scenario
+					// Select the display pane for this scenario's mode.
 					isSTARSSim := av.DB.IsTRACON(c.State.Facility) || av.DB.IsATCT(c.State.Facility)
-					activeRadarPane = config.ActiveRadarPane(isSTARSSim)
+					activeRadarPane = config.ActivePane(c.State.ScenarioMode, isSTARSSim)
 
 					// Reset each pane for the new sim
 					activeRadarPane.ResetSim(c, plat, lg)

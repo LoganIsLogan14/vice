@@ -22,6 +22,7 @@ import (
 	"github.com/mmp/vice/server"
 	"github.com/mmp/vice/sim"
 	"github.com/mmp/vice/stars"
+	"github.com/mmp/vice/tower"
 	"github.com/mmp/vice/tts"
 	"github.com/mmp/vice/util"
 
@@ -54,6 +55,7 @@ type ConfigNoSim struct {
 	ERAMPane        *eram.ERAMPane
 	MessagesPane    *panes.MessagesPane
 	FlightStripPane *panes.FlightStripPane
+	TowerCabPane    *tower.TowerCabPane
 
 	// Whether the floating windows are visible
 	ShowMessages     bool
@@ -189,12 +191,25 @@ func (c *Config) SaveIfChanged(renderer renderer.Renderer, platform platform.Pla
 	return true
 }
 
-// ActiveRadarPane returns the STARS or ERAM pane based on the sim type.
-func (c *Config) ActiveRadarPane(isSTARSSim bool) panes.Pane {
-	if isSTARSSim {
+// ActivePane returns the primary display pane for the current scenario.
+//
+// ScenarioMode may be empty when restoring a simulation saved before Tower
+// scenarios were introduced. In that case, isSTARSSim preserves VICE's
+// original STARS/ERAM selection behavior.
+func (c *Config) ActivePane(mode sim.ScenarioMode, isSTARSSim bool) panes.Pane {
+	switch mode {
+	case sim.ScenarioModeTower:
+		return c.TowerCabPane
+	case sim.ScenarioModeERAM:
+		return c.ERAMPane
+	case sim.ScenarioModeSTARS:
 		return c.STARSPane
+	default:
+		if isSTARSSim {
+			return c.STARSPane
+		}
+		return c.ERAMPane
 	}
-	return c.ERAMPane
 }
 
 func getDefaultConfig() *Config {
@@ -211,6 +226,7 @@ func getDefaultConfig() *Config {
 			ERAMPane:              eram.NewERAMPane(),
 			MessagesPane:          panes.NewMessagesPane(),
 			FlightStripPane:       panes.NewFlightStripPane(),
+			TowerCabPane:          tower.NewTowerCabPane(),
 			ShowMessages:          true,
 			ShowFlightStrips:      true,
 		},
@@ -260,6 +276,9 @@ func LoadOrMakeDefaultConfig(lg *log.Logger) (config *Config, configErr error) {
 		if config.FlightStripPane == nil {
 			config.FlightStripPane = panes.NewFlightStripPane()
 		}
+		if config.TowerCabPane == nil {
+			config.TowerCabPane = tower.NewTowerCabPane()
+		}
 
 		if config.Version < server.ViceSerializeVersion {
 			// Upgrade panes
@@ -302,4 +321,5 @@ func (c *Config) Activate(r renderer.Renderer, p platform.Platform, lg *log.Logg
 	c.ERAMPane.Activate(r, p, lg)
 	c.MessagesPane.Activate(r, p, lg)
 	c.FlightStripPane.Activate(r, p, lg)
+	c.TowerCabPane.Activate(r, p, lg)
 }
