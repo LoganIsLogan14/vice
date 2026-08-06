@@ -11205,9 +11205,6 @@
         }
       },
       "configuration": "12S",
-      "default_maps": [
-        "M98 204 12 B"
-      ],
       "departure_runways": [
         {
           "airport": "KMSP",
@@ -11265,9 +11262,6 @@
         }
       },
       "configuration": "30S",
-      "default_maps": [
-        "M98 203 30 B"
-      ],
       "departure_runways": [
         {
           "airport": "KMSP",
@@ -11325,9 +11319,6 @@
         }
       },
       "configuration": "117",
-      "default_maps": [
-        "M98 227 12-17 B"
-      ],
       "departure_runways": [
         {
           "airport": "KMSP",
@@ -11390,9 +11381,6 @@
         }
       },
       "configuration": "317",
-      "default_maps": [
-        "M98 229 30-17 B"
-      ],
       "departure_runways": [
         {
           "airport": "KMSP",
@@ -11451,9 +11439,6 @@
         }
       },
       "configuration": "135",
-      "default_maps": [
-        "M98 223 35-12 B"
-      ],
       "departure_runways": [
         {
           "airport": "KMSP",
@@ -11515,9 +11500,6 @@
         }
       },
       "configuration": "335",
-      "default_maps": [
-        "M98 231 30-35 B"
-      ],
       "departure_runways": [
         {
           "airport": "KMSP",

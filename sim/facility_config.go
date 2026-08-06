@@ -219,10 +219,35 @@ func (fc *FacilityConfig) PostDeserialize(configPath string, e *util.ErrorLogger
 		e.Pop()
 	}
 
-	fc.validateAdaptation(isARTCC, e)
+	fc.validateAdaptation(facilityScenarioMode(facility), e)
 }
 
-func (fc *FacilityConfig) validateAdaptation(isARTCC bool, e *util.ErrorLogger) {
+// facilityScenarioMode infers the controller environment a facility
+// configuration describes from its identifier. Tower configurations are
+// named "<ATCT>_TOWER" so an ATCT and a same-named TRACON can coexist.
+func facilityScenarioMode(facility string) ScenarioMode {
+	if _, ok := av.DB.ARTCCs[facility]; ok {
+		return ScenarioModeERAM
+	}
+	if av.ATCTForTowerFacility(facility) != "" {
+		return ScenarioModeTower
+	}
+	return ScenarioModeSTARS
+}
+
+// validateTowerAdaptation validates the facility adaptation of a tower cab.
+//
+// A tower cab is deliberately not a radar position: it needs control
+// positions and runway configurations, both already validated above, and
+// none of the STARS display adaptation. Radar sites, video maps, areas,
+// scratchpads, fix pairs, coordination lists and handoff ids are all
+// meaningless here, so unlike validateSTARSAdaptation this requires
+// nothing further. It exists as the explicit third branch so tower
+// configurations are never dragged through STARS validation.
+func (fc *FacilityConfig) validateTowerAdaptation(e *util.ErrorLogger) {
+}
+
+func (fc *FacilityConfig) validateAdaptation(mode ScenarioMode, e *util.ErrorLogger) {
 	fa := &fc.FacilityAdaptation
 	e.Push("facility_adaptations")
 	defer e.Pop()
@@ -297,9 +322,12 @@ func (fc *FacilityConfig) validateAdaptation(isARTCC bool, e *util.ErrorLogger) 
 		e.ErrorString(`%s: invalid value for "monitor": must be "legacy", "mdm3", or "mdm4"`, fa.Monitor)
 	}
 
-	if isARTCC {
+	switch mode {
+	case ScenarioModeERAM:
 		fc.validateERAMAdaptation(e)
-	} else {
+	case ScenarioModeTower:
+		fc.validateTowerAdaptation(e)
+	default:
 		fc.validateSTARSAdaptation(e)
 	}
 }

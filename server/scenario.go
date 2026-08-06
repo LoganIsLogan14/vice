@@ -1505,12 +1505,13 @@ func PostDeserializeFacilityAdaptation(s *sim.FacilityAdaptation, e *util.ErrorL
 
 	// A TRACON scenario's facility config must define either controllers or
 	// video maps in areas to drive a STARS display. ARTCC scenarios use
-	// ERAM and don't need these.
+	// ERAM and tower cabs drive no radar display at all, so neither needs
+	// these.
 	var allAreaVideoMaps []string
 	for _, ac := range s.Areas {
 		allAreaVideoMaps = append(allAreaVideoMaps, ac.VideoMapNames...)
 	}
-	if sg.ARTCC == "" && len(s.Controllers) == 0 && len(allAreaVideoMaps) == 0 {
+	if sg.ARTCC == "" && !sg.isTower() && len(s.Controllers) == 0 && len(allAreaVideoMaps) == 0 {
 		e.ErrorString(`must specify either "controllers" or "video_maps" in "areas"`)
 	}
 
