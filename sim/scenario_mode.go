@@ -54,6 +54,9 @@ func (s *CommonState) IsTerminal() bool {
 	}
 }
 
+// IsTower reports whether this sim is a tower cab.
+func (s *CommonState) IsTower() bool { return s.ScenarioMode == ScenarioModeTower }
+
 func ParseScenarioMode(s string) (ScenarioMode, error) {
 	mode := ScenarioMode(strings.ToLower(strings.TrimSpace(s)))
 	if !mode.Valid() {
