@@ -215,6 +215,20 @@ func (d StaticDatabase) IsFacility(id string) bool {
 	return d.IsARTCC(id) || d.IsTRACON(id) || d.IsATCT(id)
 }
 
+// TowerFacilitySuffix distinguishes a tower cab scenario's facility id from
+// a same-named TRACON: the Philadelphia ATCT and the Philadelphia TRACON are
+// both "PHL", so tower scenarios are catalogued as "PHL_TOWER".
+const TowerFacilitySuffix = "_TOWER"
+
+// ATCTForTowerFacility maps a tower scenario's facility id back to the ATCT
+// id it was derived from. It returns "" if fac is not a tower facility id.
+func ATCTForTowerFacility(fac string) string {
+	if atct, ok := strings.CutSuffix(fac, TowerFacilitySuffix); ok {
+		return atct
+	}
+	return ""
+}
+
 // ARTCCForFacility returns the ARTCC identifier for the given facility:
 // the id itself if it is an ARTCC, the parent ARTCC for a TRACON or
 // ATCT, or "" if the id is unknown.
@@ -226,6 +240,11 @@ func (d StaticDatabase) ARTCCForFacility(fac string) string {
 		return tracon.ARTCC
 	}
 	if atct, ok := d.ATCTs[fac]; ok {
+		return atct.ARTCC
+	}
+	// Tower scenarios are catalogued under an "_TOWER"-suffixed id; resolve
+	// them through the underlying ATCT.
+	if atct, ok := d.ATCTs[ATCTForTowerFacility(fac)]; ok {
 		return atct.ARTCC
 	}
 	return ""

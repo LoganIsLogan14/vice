@@ -16,7 +16,7 @@ import (
 func (sg *scenarioGroup) facility() string {
 	switch sg.scenarioMode() {
 	case sim.ScenarioModeTower:
-		return sg.Tower + "_TOWER"
+		return sg.Tower + av.TowerFacilitySuffix
 	case sim.ScenarioModeERAM:
 		return sg.ARTCC
 	default:
