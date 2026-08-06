@@ -47,6 +47,12 @@ type Nav struct {
 	Airwork     *NavAirwork
 	Prespawn    bool
 
+	// GroundOps enables surface behaviour: arrivals touch down and roll
+	// out rather than flying through the field. It is off by default
+	// because STARS and ERAM sims expect arrivals to keep flying until a
+	// controller deletes them; tower cabs turn it on.
+	GroundOps bool
+
 	FixAssignments map[string]NavFixAssignment
 
 	// DeferredNavHeading stores a heading/direct fix assignment from the
@@ -148,6 +154,10 @@ func (nav *Nav) RestoreSnapshot(snap NavSnapshot) {
 
 type FlightState struct {
 	InitialDepartureClimb     bool
+	// Landed is set when an aircraft on an approach touches down, and is
+	// never cleared: the aircraft stays on the runway decelerating until
+	// something removes it. Only ever set when Nav.GroundOps is enabled.
+	Landed                    bool
 	DepartureAirportLocation  math.Point2LL
 	DepartureAirportElevation float32
 	ArrivalAirport            av.Waypoint

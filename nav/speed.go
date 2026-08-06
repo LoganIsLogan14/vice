@@ -107,6 +107,12 @@ func (nav *Nav) TargetSpeed(targetAltitude float32, fp *av.FlightPlan, wxs wx.Sa
 		}
 	}
 
+	// Braking on the landing rollout overrides everything: no controller
+	// assignment applies to an aircraft that is already on the runway.
+	if nav.FlightState.Landed {
+		return rolloutSpeed, MaximumRate
+	}
+
 	maxAccel := nav.Perf.Rate.Accelerate * 30 // per minute
 
 	fd, err := nav.DistanceToEndOfApproach()

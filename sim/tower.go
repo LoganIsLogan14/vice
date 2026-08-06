@@ -4,6 +4,39 @@
 
 package sim
 
+import (
+	"github.com/mmp/vice/math"
+)
+
+// towerApproachClearanceNM is how far from the field a tower cab's
+// arrivals are cleared for the approach they were told to expect.
+//
+// In a full facility the TRACON issues this clearance. A tower cab has no
+// TRACON position working the arrivals, so without it they would fly their
+// STAR indefinitely, never become established, and never touch down.
+// Clearing on the way in rather than at spawn means they still fly the
+// arrival procedure first.
+const towerApproachClearanceNM = 15
+
+// maybeClearTowerArrival stands in for the TRACON, clearing an inbound for
+// its expected approach once it is close enough to the field.
+func (s *Sim) maybeClearTowerArrival(ac *Aircraft) {
+	if !s.State.IsTower() || ac.Nav.IsLanded() {
+		return
+	}
+	// Nothing to clear them for unless the inbound flow adapted an
+	// "expect_approach", and never re-clear one already established.
+	if ac.Nav.Approach.Cleared || ac.Nav.Approach.Assigned == nil {
+		return
+	}
+	if math.NMDistance2LL(ac.Position(), ac.Nav.FlightState.ArrivalAirportLocation) >
+		towerApproachClearanceNM {
+		return
+	}
+
+	ac.Nav.ClearedApproach("", nil, s.State.SimTime.NavTime(), false)
+}
+
 // assignTowerOwnership gives a spawning flight to the cab's controlling
 // position.
 //
@@ -30,4 +63,9 @@ func (s *Sim) assignTowerOwnership(nasFp *NASFlightPlan, ac *Aircraft) {
 	// The flight talks to the cab, not to whichever centre sector the
 	// inbound flow or exit route nominated.
 	ac.ControllerFrequency = pos
+
+	// A cab is looking at the runway, so arrivals have to actually land on
+	// it rather than flying through the field and being culled 200 miles
+	// later.
+	ac.Nav.GroundOps = true
 }

@@ -299,6 +299,11 @@ func (nav *Nav) TargetAltitude() (float32, float32, bool) {
 		return nav.Airwork.TargetAltitude()
 	}
 
+	// A landed aircraft stays on the runway at field elevation.
+	if nav.FlightState.Landed {
+		return nav.FlightState.ArrivalAirportElevation, 0, false
+	}
+
 	// Stay on the ground if we're still on the takeoff roll.
 	rate := float32(MaximumRate)
 	if nav.FlightState.InitialDepartureClimb && !nav.IsAirborne() {

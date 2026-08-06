@@ -1318,6 +1318,10 @@ func (s *Sim) updateState() {
 				}
 			}
 
+			// Stand in for the TRACON and clear tower arrivals for their
+			// approach so they become established and land.
+			s.maybeClearTowerArrival(ac)
+
 			// Cull far-away aircraft
 			if math.NMDistance2LL(ac.Position(), s.State.Center) > s.cullDistance() {
 				s.lg.Debug("culled far-away aircraft", slog.String("adsb_callsign", string(callsign)))
