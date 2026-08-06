@@ -101,6 +101,9 @@ type ScenarioCatalog struct {
 }
 
 type ScenarioSpec struct {
+	// Mode identifies the controller environment used by this scenario.
+	Mode sim.ScenarioMode
+
 	ControllerConfiguration *sim.ControllerConfiguration
 	PrimaryAirport          string
 	MagneticVariation       float32
@@ -309,6 +312,7 @@ func (sm *SimManager) makeSimConfiguration(req *NewSimRequest, lg *log.Logger) (
 
 	nsc := sim.NewSimConfiguration{
 		Facility:                    req.Facility,
+		ScenarioMode:                sc.Mode,
 		LaunchConfig:                req.ScenarioSpec.LaunchConfig,
 		FacilityAdaptation:          deep.MustCopy(sg.FacilityConfig.FacilityAdaptation),
 		DisableTFRRestrictionAreas:  sg.FacilityConfig.DisableTFRRestrictionAreas,

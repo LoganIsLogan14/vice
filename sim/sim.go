@@ -163,9 +163,10 @@ type LastSTTCommand struct {
 
 // NewSimConfiguration collects all of the information required to create a new Sim
 type NewSimConfiguration struct {
-	Facility    string
-	Description string
-	Brief       string
+	Facility     string
+	ScenarioMode ScenarioMode
+	Description  string
+	Brief        string
 
 	Airports           map[string]*av.Airport
 	PrimaryAirport     string
