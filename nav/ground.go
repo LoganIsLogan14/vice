@@ -4,12 +4,21 @@
 
 package nav
 
+import (
+	"github.com/mmp/vice/math"
+)
+
 const (
-	// touchdownAGL is how far above the arrival field an aircraft flying an
-	// approach is taken to have touched down. The approach already flies the
-	// aircraft down to the runway; this only decides when it stops being a
-	// flight and starts being a ground vehicle.
+	// touchdownAGL is how far above the arrival field an aircraft is taken
+	// to have touched down. Its route already flies it down to the runway;
+	// this only decides when it stops being a flight and starts being a
+	// ground vehicle.
 	touchdownAGL = 50
+
+	// touchdownRangeNM bounds how far from the field a touchdown can
+	// happen, so an aircraft passing low over terrain elsewhere is not
+	// mistaken for one on the runway.
+	touchdownRangeNM = 3
 
 	// rolloutSpeed is the speed a landed aircraft decelerates to. It stands
 	// in for turning off the runway, which needs taxiway geometry that does
@@ -29,12 +38,17 @@ func (nav *Nav) checkTouchdown() {
 	if !nav.GroundOps || nav.FlightState.Landed {
 		return
 	}
-	// Only an aircraft actually flying an approach can land; one being
-	// vectored through the area at low altitude has not.
-	if !nav.OnApproach(false) {
+	if nav.FlightState.Altitude > nav.FlightState.ArrivalAirportElevation+touchdownAGL {
 		return
 	}
-	if nav.FlightState.Altitude > nav.FlightState.ArrivalAirportElevation+touchdownAGL {
+	// Touching down is deliberately not conditioned on an approach
+	// clearance. Many facilities vector arrivals onto final rather than
+	// adapting an "expect_approach", so Approach.Cleared is never set, and
+	// a tower cab spawns its arrivals already established on final with no
+	// approach object at all. Proximity to the field is what actually
+	// distinguishes a landing from a low pass elsewhere.
+	if math.NMDistance2LL(nav.FlightState.Position, nav.FlightState.ArrivalAirportLocation) >
+		touchdownRangeNM {
 		return
 	}
 

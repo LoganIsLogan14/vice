@@ -197,6 +197,7 @@ func (s *Sim) finalizeArrivalNoLock(ac *Aircraft, arr *av.Arrival, group string,
 
 	if s.State.IsTower() {
 		s.assignTowerOwnership(&nasFp, ac)
+		s.placeTowerArrivalOnFinal(ac)
 	} else {
 		// Pseudo-ERAM coordination derives the entry fix; the STARS fix-pair
 		// pipeline then reassigns the pair and assigns the owning position,

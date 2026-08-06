@@ -5,36 +5,94 @@
 package sim
 
 import (
-	"github.com/mmp/vice/math"
+	av "github.com/mmp/vice/aviation"
+	"github.com/mmp/vice/nav"
 )
 
-// towerApproachClearanceNM is how far from the field a tower cab's
-// arrivals are cleared for the approach they were told to expect.
+const (
+	// towerFinalNM is how far out a tower cab's arrivals appear, already
+	// established on the final approach course.
+	towerFinalNM = 15
+
+	// towerGlidepathFtPerNM is a nominal 3 degree glidepath, used to place
+	// an arrival at a plausible altitude for its distance from the runway.
+	towerGlidepathFtPerNM = 318
+
+	towerFinalIAS     = 180
+	towerThresholdIAS = 140
+)
+
+// towerArrivalRunway returns the runway arrivals are landing on at the
+// given airport under the current configuration.
+func (s *Sim) towerArrivalRunway(airport string) (av.Runway, bool) {
+	var id av.RunwayID
+	for _, ar := range s.State.ArrivalRunways {
+		if ar.Airport == airport {
+			id = ar.Runway
+			break
+		}
+	}
+	if id == "" {
+		return av.Runway{}, false
+	}
+
+	faaAP, ok := av.DB.Airports[airport]
+	if !ok {
+		return av.Runway{}, false
+	}
+	for _, rwy := range faaAP.Runways {
+		if rwy.Id == string(id) {
+			return rwy, true
+		}
+	}
+	return av.Runway{}, false
+}
+
+// placeTowerArrivalOnFinal discards an arrival's enroute and terminal
+// routing and puts it on final for the landing runway instead.
 //
-// In a full facility the TRACON issues this clearance. A tower cab has no
-// TRACON position working the arrivals, so without it they would fly their
-// STAR indefinitely, never become established, and never touch down.
-// Clearing on the way in rather than at spawn means they still fly the
-// arrival procedure first.
-const towerApproachClearanceNM = 15
-
-// maybeClearTowerArrival stands in for the TRACON, clearing an inbound for
-// its expected approach once it is close enough to the field.
-func (s *Sim) maybeClearTowerArrival(ac *Aircraft) {
-	if !s.State.IsTower() || ac.Nav.IsLanded() {
-		return
+// A tower cab has no interest in the STAR: the whole segment from the
+// arrival fix to the final approach course belongs to positions the cab
+// does not work, and at facilities where the TRACON vectors to final there
+// is no adapted approach for the aircraft to fly itself down anyway, so
+// arrivals would circle the STAR forever and never land.
+//
+// Returns false when the scenario gives no usable landing runway, in which
+// case the aircraft keeps its original routing.
+func (s *Sim) placeTowerArrivalOnFinal(ac *Aircraft) bool {
+	airport := ac.FlightPlan.ArrivalAirport
+	rwy, ok := s.towerArrivalRunway(airport)
+	if !ok {
+		return false
 	}
-	// Nothing to clear them for unless the inbound flow adapted an
-	// "expect_approach", and never re-clear one already established.
-	if ac.Nav.Approach.Cleared || ac.Nav.Approach.Assigned == nil {
-		return
-	}
-	if math.NMDistance2LL(ac.Position(), ac.Nav.FlightState.ArrivalAirportLocation) >
-		towerApproachClearanceNM {
-		return
+	faaAP, ok := av.DB.Airports[airport]
+	if !ok {
+		return false
 	}
 
-	ac.Nav.ClearedApproach("", nil, s.State.SimTime.NavTime(), false)
+	b := newPatternBuilder(rwy, faaAP.Elevation, s.State.NmPerLongitude, s.State.MagneticVariation)
+
+	// The route is just the runway now: cross the threshold, then roll out
+	// along it.
+	ac.Nav.Waypoints = []av.Waypoint{
+		b.waypoint("_twr_threshold", 0, 0, 0, towerThresholdIAS, 0),
+		b.waypoint("_twr_rollout", 1, 0, 0, 0, 0),
+	}
+
+	// Drop the STAR's altitude and speed restrictions along with any
+	// approach the inbound flow told the aircraft to expect; none of it
+	// applies to an aircraft that is already on final.
+	ac.Nav.Altitude = nav.NavAltitude{}
+	ac.Nav.Speed = nav.NavSpeed{}
+	ac.Nav.Approach = nav.NavApproach{}
+
+	start := b.waypoint("_twr_final", -towerFinalNM, 0, 0, 0, 0)
+	ac.Nav.FlightState.Position = start.Location
+	ac.Nav.FlightState.Altitude = float32(faaAP.Elevation) + towerFinalNM*towerGlidepathFtPerNM
+	ac.Nav.FlightState.Heading = rwy.Heading
+	ac.Nav.FlightState.IAS = towerFinalIAS
+
+	return true
 }
 
 // assignTowerOwnership gives a spawning flight to the cab's controlling
