@@ -134,8 +134,6 @@ func (sc *STARSComputer) Update(s *Sim) {
 			return false
 		}()
 		if ac.IsAssociated() && drop {
-			s.lg.Debugf("tower: dropping association for %s (type of flight %v, went around %v)",
-				ac.ADSBCallsign, ac.TypeOfFlight, ac.WentAround)
 			fp := ac.DisassociateFlightPlan()
 			fp.DeleteTime = s.State.SimTime.Add(4 * time.Minute) // hold it for a bit before deleting
 			sc.FlightPlans = append(sc.FlightPlans, fp)
@@ -169,6 +167,16 @@ func (sc *STARSComputer) Update(s *Sim) {
 				}
 
 				if ac.TypeOfFlight == av.FlightTypeDeparture {
+					// The delay below models STARS acquiring a departure by
+					// radar after it climbs out of the surface tracking
+					// filter. A cab is holding the strip before the aircraft
+					// moves, and is exempt from that filter anyway, so the
+					// timer would otherwise start ticking at spawn and leave
+					// the datablock blank on the runway.
+					if s.State.IsTower() {
+						return true
+					}
+
 					// Simulate delay in tagging up between the first time it's left the surface tracking filter.
 					if !ac.DepartureFPAcquisitionTime.IsZero() && s.State.SimTime.After(ac.DepartureFPAcquisitionTime) {
 						return true

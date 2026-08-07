@@ -1127,19 +1127,6 @@ func (s *Sim) updateState() {
 					ac.Nav.FlightState.Altitude, ac.Nav.FlightState.IAS)
 			}
 
-			// A landed aircraft that loses its flight plan or its radar
-			// visibility drops out of the track list the tower cab draws
-			// from, so it vanishes from the view while still present in the
-			// sim. Report the transition rather than the steady state.
-			if ac.Nav.IsLanded() {
-				assoc, visible := ac.IsAssociated(), s.isRadarVisible(ac)
-				if !assoc || !visible {
-					s.lg.Debugf("tower: landed %s dropped from tracks: associated=%v "+
-						"radar_visible=%v airborne=%v alt=%.0f ias=%.0f gs=%.0f",
-						ac.ADSBCallsign, assoc, visible, ac.IsAirborne(),
-						ac.Nav.FlightState.Altitude, ac.Nav.FlightState.IAS, ac.GS())
-				}
-			}
 			s.refreshSeenTraffic(ac)
 
 			if ac.Nav.Approach.RequestApproachClearance && ac.IsAssociated() {
