@@ -600,7 +600,11 @@ func (s *Sim) associateAtSpawn(ac *Aircraft, nasFp NASFlightPlan) error {
 	if err != nil {
 		return err
 	}
-	if !s.isVirtualController(created.TrackingController) {
+	// Traffic owned by a human position is normally left unassociated for
+	// that controller to acquire. A tower cab has a single position that
+	// owns everything outright, so leaving its traffic unassociated means
+	// no aircraft ever has a flight plan and every datablock is empty.
+	if !s.State.IsTower() && !s.isVirtualController(created.TrackingController) {
 		return nil
 	}
 	fp := s.STARSComputer.takeFlightPlanByACID(created.ACID)

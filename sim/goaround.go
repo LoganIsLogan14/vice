@@ -27,6 +27,18 @@ func (s *Sim) contactDeparture(ac *Aircraft, fp *NASFlightPlan) {
 }
 
 func (s *Sim) isRadarVisible(ac *Aircraft) bool {
+	// A tower cab looks out of the window rather than at a radar display.
+	// Surface tracking suppression exists so STARS does not paint targets
+	// sitting on the airport surface; applied to a cab it hides exactly the
+	// aircraft it most needs to see, at exactly the moment they land.
+	//
+	// This is not avoidable by leaving the filter out of the facility
+	// configuration: a facility that adapts none is given a synthesized
+	// one around every airport during scenario load.
+	if s.State.IsTower() {
+		return true
+	}
+
 	filters := s.State.FacilityAdaptation.Filters
 	return !filters.SurfaceTracking.Inside(ac.Position(), int(ac.Altitude()))
 }
