@@ -609,12 +609,16 @@ func (s *Sim) associateAtSpawn(ac *Aircraft, nasFp NASFlightPlan) error {
 	}
 	fp := s.STARSComputer.takeFlightPlanByACID(created.ACID)
 	if fp == nil {
+		s.lg.Debugf("tower: %s not associated at spawn: no flight plan for ACID %s",
+			ac.ADSBCallsign, created.ACID)
 		return nil
 	}
 	if s.State.IsLocalController(fp.TrackingController) {
 		fp.LastLocalController = fp.TrackingController
 	}
 	ac.AssociateFlightPlan(fp)
+	s.lg.Debugf("tower: %s associated at spawn, tracking controller %q",
+		ac.ADSBCallsign, fp.TrackingController)
 	s.eventStream.Post(Event{
 		Type: FlightPlanAssociatedEvent,
 		ACID: fp.ACID,

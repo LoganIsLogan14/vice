@@ -127,6 +127,8 @@ func (sc *STARSComputer) Update(s *Sim) {
 			return false
 		}()
 		if ac.IsAssociated() && drop {
+			s.lg.Debugf("tower: dropping association for %s (type of flight %v, went around %v)",
+				ac.ADSBCallsign, ac.TypeOfFlight, ac.WentAround)
 			fp := ac.DisassociateFlightPlan()
 			fp.DeleteTime = s.State.SimTime.Add(4 * time.Minute) // hold it for a bit before deleting
 			sc.FlightPlans = append(sc.FlightPlans, fp)
