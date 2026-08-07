@@ -617,8 +617,6 @@ func (s *Sim) associateAtSpawn(ac *Aircraft, nasFp NASFlightPlan) error {
 		fp.LastLocalController = fp.TrackingController
 	}
 	ac.AssociateFlightPlan(fp)
-	s.lg.Debugf("tower: %s associated at spawn, tracking controller %q",
-		ac.ADSBCallsign, fp.TrackingController)
 	s.eventStream.Post(Event{
 		Type: FlightPlanAssociatedEvent,
 		ACID: fp.ACID,

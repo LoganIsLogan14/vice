@@ -116,7 +116,14 @@ func (sc *STARSComputer) Update(s *Sim) {
 		filters := s.State.FacilityAdaptation.Filters
 
 		drop := func() bool {
-			if ac.TypeOfFlight == av.FlightTypeArrival && !ac.WentAround && inVolumes(filters.ArrivalDrop) {
+			// The arrival drop area exists so STARS releases a landing
+			// aircraft's track as it reaches the field. A tower cab is only
+			// starting to work the aircraft at that point, so it keeps it.
+			// Like surface tracking, a facility that adapts no arrival drop
+			// filter is given a synthesized one around every IFR airport,
+			// so this cannot be avoided through configuration.
+			if !s.State.IsTower() && ac.TypeOfFlight == av.FlightTypeArrival &&
+				!ac.WentAround && inVolumes(filters.ArrivalDrop) {
 				return true
 			} else if fp := ac.NASFlightPlan; fp != nil {
 				if fp.LastLocalController != "" && s.State.IsExternalController(fp.TrackingController) &&
