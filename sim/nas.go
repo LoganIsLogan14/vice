@@ -97,7 +97,11 @@ func (sc *STARSComputer) Update(s *Sim) {
 	})
 
 	for _, ac := range s.Aircraft {
-		if !ac.IsAirborne() || ac.Squawk == 0o1200 {
+		// A tower cab works aircraft on the ground, so they have to be
+		// tracked there too. Skipping them means a departure has no flight
+		// plan until it reaches V2 and an arrival loses its own on rollout,
+		// leaving the datablock empty in both cases.
+		if (!ac.IsAirborne() && !s.State.IsTower()) || ac.Squawk == 0o1200 {
 			continue
 		}
 
@@ -144,8 +148,9 @@ func (sc *STARSComputer) Update(s *Sim) {
 					return false
 				}
 
-				if inVolumes(filters.SurfaceTracking) {
-					// Still on the ground and not yet radar visible
+				if !s.State.IsTower() && inVolumes(filters.SurfaceTracking) {
+					// Still on the ground and not yet radar visible. A cab
+					// sees the surface directly, so this does not apply.
 					return false
 				}
 
